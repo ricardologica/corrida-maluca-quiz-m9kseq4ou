@@ -1,15 +1,15 @@
 {
-  "generatedAt": "2026-04-07T03:41:06.444Z",
+  "generatedAt": "2026-04-07T04:00:57.546Z",
   "collections": [
     {
       "name": "users",
       "type": "auth",
       "apiRules": {
-        "list": "id = @request.auth.id",
-        "view": "id = @request.auth.id",
+        "list": "id = @request.auth.id || @request.auth.role = 'teacher'",
+        "view": "id = @request.auth.id || @request.auth.role = 'teacher'",
         "create": "",
-        "update": "id = @request.auth.id",
-        "delete": "id = @request.auth.id"
+        "update": "id = @request.auth.id || @request.auth.role = 'teacher'",
+        "delete": "id = @request.auth.id || @request.auth.role = 'teacher'"
       },
       "fields": [
         {
@@ -201,8 +201,8 @@
         "list": "",
         "view": "",
         "create": "@request.auth.id != ''",
-        "update": "user_id = @request.auth.id",
-        "delete": "user_id = @request.auth.id"
+        "update": "user_id = @request.auth.id || @request.auth.role = 'teacher'",
+        "delete": "user_id = @request.auth.id || @request.auth.role = 'teacher'"
       },
       "fields": [
         {

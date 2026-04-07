@@ -6,7 +6,7 @@ import { useRealtime } from '@/hooks/use-realtime'
 import { TrackLane } from '@/components/TrackLane'
 import { Button } from '@/components/ui/button'
 import type { RecordModel } from 'pocketbase'
-import { Play, Pause, Square, Plus, RotateCcw, Upload } from 'lucide-react'
+import { Play, Pause, Square, Plus, RotateCcw, Upload, Trash2 } from 'lucide-react'
 import {
   Dialog,
   DialogContent,
@@ -14,6 +14,18 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
+import { Checkbox } from '@/components/ui/checkbox'
+import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { useToast } from '@/hooks/use-toast'
 import { z } from 'zod'
@@ -46,6 +58,8 @@ const Dashboard = () => {
   const [importJson, setImportJson] = useState('')
   const [isImporting, setIsImporting] = useState(false)
   const [importModalOpen, setImportModalOpen] = useState(false)
+  const [playerToDelete, setPlayerToDelete] = useState<any>(null)
+  const [deleteAccountToo, setDeleteAccountToo] = useState(false)
 
   useEffect(() => {
     if (!user || user.role !== 'teacher') {
@@ -184,17 +198,35 @@ const Dashboard = () => {
     if (!session) return
     try {
       await pb.collection('game_sessions').update(session.id, { status: 'lobby' })
-      for (const p of players) {
-        await pb.collection('player_progress').update(p.id, {
+      const promises = players.map((p) =>
+        pb.collection('player_progress').update(p.id, {
           position_x: 0,
           score: 0,
           wrong_answers: 0,
           current_question_index: 0,
           status: 'idle',
-        })
+        }),
+      )
+      await Promise.all(promises)
+      toast({ title: 'Sessão reiniciada!', description: 'Todos os alunos voltaram ao início.' })
+    } catch (e: any) {
+      toast({ title: 'Erro ao reiniciar', description: e.message, variant: 'destructive' })
+    }
+  }
+
+  const handleDeletePlayer = async () => {
+    if (!playerToDelete) return
+    try {
+      await pb.collection('player_progress').delete(playerToDelete.id)
+      if (deleteAccountToo) {
+        await pb.collection('users').delete(playerToDelete.user_id)
       }
-    } catch (e) {
-      console.error(e)
+      toast({ title: 'Aluno removido com sucesso!' })
+    } catch (e: any) {
+      toast({ title: 'Erro ao remover aluno', description: e.message, variant: 'destructive' })
+    } finally {
+      setPlayerToDelete(null)
+      setDeleteAccountToo(false)
     }
   }
 
@@ -202,6 +234,7 @@ const Dashboard = () => {
     const user = p.expand?.user_id
     return {
       id: p.id,
+      user_id: p.user_id,
       name: user?.name || 'Unknown',
       grade: user?.grade || '',
       carColor: p.car_color || 'hsl(188, 100%, 50%)',
@@ -368,10 +401,19 @@ const Dashboard = () => {
                   <span className="text-destructive">{player.wrong_answers} ERROS</span>
                 </div>
               </div>
-              <div className="text-right">
+              <div className="text-right flex items-center gap-3">
                 <div className="font-racing text-sm text-primary">
                   {Math.round((player.progress / TOTAL_QUESTIONS) * 100)}%
                 </div>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 text-red-500 hover:text-red-400 hover:bg-red-500/10"
+                  onClick={() => setPlayerToDelete(player)}
+                  title="Remover Aluno"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </Button>
               </div>
             </div>
           ))}
@@ -382,6 +424,47 @@ const Dashboard = () => {
           )}
         </div>
       </div>
+
+      <AlertDialog
+        open={!!playerToDelete}
+        onOpenChange={(open) => !open && setPlayerToDelete(null)}
+      >
+        <AlertDialogContent className="glass-panel border-white/10 text-white">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="font-racing text-xl text-primary">
+              Remover Aluno
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-muted-foreground">
+              Tem certeza que deseja remover <strong>{playerToDelete?.name}</strong> da corrida
+              atual?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+
+          <div className="flex items-center space-x-2 py-4">
+            <Checkbox
+              id="delete-account"
+              checked={deleteAccountToo}
+              onCheckedChange={(c) => setDeleteAccountToo(!!c)}
+              className="border-white/50 data-[state=checked]:bg-destructive data-[state=checked]:border-destructive"
+            />
+            <Label htmlFor="delete-account" className="text-sm cursor-pointer">
+              Também excluir a conta deste aluno permanentemente
+            </Label>
+          </div>
+
+          <AlertDialogFooter>
+            <AlertDialogCancel className="bg-transparent border-white/20 hover:bg-white/10 text-white">
+              Cancelar
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeletePlayer}
+              className="bg-destructive hover:bg-destructive/80 text-white"
+            >
+              Remover
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

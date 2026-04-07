@@ -62,6 +62,10 @@ const Dashboard = () => {
   const [playerToDelete, setPlayerToDelete] = useState<any>(null)
   const [deleteAccountToo, setDeleteAccountToo] = useState(false)
 
+  // Questions Management State
+  const [questions, setQuestions] = useState<RecordModel[]>([])
+  const [loadingQuestions, setLoadingQuestions] = useState(false)
+
   // Student Management State
   const [students, setStudents] = useState<RecordModel[]>([])
   const [loadingStudents, setLoadingStudents] = useState(false)
@@ -74,7 +78,22 @@ const Dashboard = () => {
       return
     }
     loadSession()
+    loadQuestions()
   }, [user, navigate])
+
+  const loadQuestions = async () => {
+    setLoadingQuestions(true)
+    try {
+      const records = await pb.collection('questions').getFullList({
+        sort: 'external_id',
+      })
+      setQuestions(records)
+    } catch (e) {
+      console.error(e)
+    } finally {
+      setLoadingQuestions(false)
+    }
+  }
 
   const loadSession = async () => {
     try {
@@ -165,6 +184,22 @@ const Dashboard = () => {
         setStudents((prev) => prev.map((s) => (s.id === e.record.id ? e.record : s)))
       } else if (e.action === 'delete') {
         setStudents((prev) => prev.filter((s) => s.id !== e.record.id))
+      }
+    },
+    !!user,
+  )
+
+  useRealtime(
+    'questions',
+    (e) => {
+      if (e.action === 'create') {
+        setQuestions((prev) =>
+          [...prev, e.record].sort((a, b) => (a.external_id || 0) - (b.external_id || 0)),
+        )
+      } else if (e.action === 'update') {
+        setQuestions((prev) => prev.map((q) => (q.id === e.record.id ? e.record : q)))
+      } else if (e.action === 'delete') {
+        setQuestions((prev) => prev.filter((q) => q.id !== e.record.id))
       }
     },
     !!user,
@@ -630,33 +665,85 @@ Regras:
 
       {/* Manage Questions Dialog */}
       <Dialog open={manageModalOpen} onOpenChange={setManageModalOpen}>
-        <DialogContent className="glass-panel border-white/10 text-white sm:max-w-md">
+        <DialogContent className="glass-panel border-white/10 text-white sm:max-w-4xl max-h-[90vh] flex flex-col">
           <DialogHeader>
-            <DialogTitle className="font-racing text-xl text-primary">
-              Gerenciar Questões
+            <DialogTitle className="font-racing text-xl text-primary flex items-center justify-between">
+              <span>Gerenciar Questões ({questions.length})</span>
             </DialogTitle>
           </DialogHeader>
-          <div className="space-y-4 py-4">
-            <Label>Excluir Questão por ID</Label>
-            <div className="flex gap-2">
+
+          <div className="flex gap-2 items-end shrink-0 mt-2">
+            <div className="flex-1">
+              <Label>Excluir Questão por ID</Label>
               <Input
                 placeholder="Ex: 15"
                 type="number"
-                className="bg-black/50 border-white/20"
+                className="bg-black/50 border-white/20 mt-1"
                 value={questionIdToDelete}
                 onChange={(e) => setQuestionIdToDelete(e.target.value)}
               />
-              <Button
-                variant="destructive"
-                onClick={handleDeleteQuestion}
-                disabled={!questionIdToDelete}
-              >
-                Excluir
-              </Button>
             </div>
-            <p className="text-xs text-muted-foreground mt-2">
-              Use o ID (external_id) fornecido na importação para deletar uma questão específica.
-            </p>
+            <Button
+              variant="destructive"
+              onClick={handleDeleteQuestion}
+              disabled={!questionIdToDelete}
+            >
+              Excluir
+            </Button>
+          </div>
+
+          <div className="flex-1 overflow-auto mt-4 border border-white/10 rounded-md">
+            {loadingQuestions ? (
+              <div className="p-8 text-center text-muted-foreground font-racing">
+                Carregando questões...
+              </div>
+            ) : questions.length === 0 ? (
+              <div className="p-8 text-center text-muted-foreground font-racing">
+                Nenhuma questão encontrada.
+              </div>
+            ) : (
+              <Table>
+                <TableHeader className="sticky top-0 bg-black/80 backdrop-blur z-10 border-b border-white/10">
+                  <TableRow className="border-white/10 hover:bg-transparent">
+                    <TableHead className="w-16 font-racing text-primary">ID</TableHead>
+                    <TableHead className="w-32 font-racing text-primary">Série</TableHead>
+                    <TableHead className="w-32 font-racing text-primary">Tema</TableHead>
+                    <TableHead className="font-racing text-primary">Pergunta</TableHead>
+                    <TableHead className="w-24 font-racing text-primary">Nível</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {questions.map((q) => (
+                    <TableRow
+                      key={q.id}
+                      className="border-white/10 hover:bg-white/5 transition-colors"
+                    >
+                      <TableCell className="font-mono text-muted-foreground text-xs">
+                        {q.external_id}
+                      </TableCell>
+                      <TableCell className="text-xs">{q.suggested_grade}</TableCell>
+                      <TableCell className="text-xs">{q.theme}</TableCell>
+                      <TableCell className="max-w-[200px] truncate text-xs" title={q.statement}>
+                        {q.statement}
+                      </TableCell>
+                      <TableCell>
+                        <span
+                          className={`px-2 py-1 rounded text-[10px] font-bold ${
+                            q.difficulty === 'Fácil'
+                              ? 'bg-green-500/20 text-green-400'
+                              : q.difficulty === 'Médio'
+                                ? 'bg-yellow-500/20 text-yellow-400'
+                                : 'bg-red-500/20 text-red-400'
+                          }`}
+                        >
+                          {q.difficulty}
+                        </span>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
           </div>
         </DialogContent>
       </Dialog>

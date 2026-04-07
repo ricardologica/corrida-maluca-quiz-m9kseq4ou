@@ -12,6 +12,7 @@ const Login = () => {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [name, setName] = useState('')
+  const [grade, setGrade] = useState('')
   const [loading, setLoading] = useState(false)
   const navigate = useNavigate()
   const { toast } = useToast()
@@ -42,11 +43,30 @@ const Login = () => {
     e.preventDefault()
     setLoading(true)
     try {
+      if (password.length < 8) {
+        toast({
+          title: 'Erro',
+          description: 'A senha deve ter pelo menos 8 caracteres.',
+          variant: 'destructive',
+        })
+        setLoading(false)
+        return
+      }
+      if (!grade) {
+        toast({
+          title: 'Erro',
+          description: 'Selecione a sua série.',
+          variant: 'destructive',
+        })
+        setLoading(false)
+        return
+      }
       await pb.collection('users').create({
         email,
         password,
         passwordConfirm: password,
         name,
+        grade,
         role: 'student',
       })
       await pb.collection('users').authWithPassword(email, password)
@@ -77,7 +97,8 @@ const Login = () => {
         <Alert className="mb-6 bg-blue-500/10 border-blue-500/30 text-blue-200">
           <Info className="h-4 w-4 text-blue-400" />
           <AlertDescription className="ml-2 font-medium">
-            Ao entrar e confirmar o seu e-mail, todos os seus resultados serão guardados!
+            Ao entrar e confirmar seu e-mail, todos os seus resultados serão guardados no seu
+            perfil.
           </AlertDescription>
         </Alert>
 
@@ -145,12 +166,27 @@ const Login = () => {
               />
               <Input
                 type="password"
-                placeholder="Crie uma Senha"
+                placeholder="Crie uma Senha (mín. 8 caracteres)"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
+                minLength={8}
                 className="bg-black/50 border-white/20 h-12"
               />
+              <select
+                value={grade}
+                onChange={(e) => setGrade(e.target.value)}
+                required
+                className="flex h-12 w-full items-center justify-between rounded-md border bg-black/50 border-white/20 px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 text-white"
+              >
+                <option value="" disabled>
+                  Selecione sua série
+                </option>
+                <option value="6º Ano">6º Ano</option>
+                <option value="7º Ano">7º Ano</option>
+                <option value="8º Ano">8º Ano</option>
+                <option value="9º Ano">9º Ano</option>
+              </select>
               <Button
                 type="submit"
                 disabled={loading}

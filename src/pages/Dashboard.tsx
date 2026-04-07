@@ -365,7 +365,7 @@ Regras:
     return {
       id: p.id,
       user_id: p.user_id,
-      name: u?.name || 'Unknown',
+      name: u?.nickname || u?.name || 'Unknown',
       grade: u?.grade || '',
       carColor: p.car_color || 'hsl(188, 100%, 50%)',
       avatarUrl: u?.avatar ? pb.files.getURL(u, u.avatar) : p.avatar_url || '',
@@ -600,7 +600,8 @@ Regras:
                 <TableHeader>
                   <TableRow className="border-white/10 hover:bg-transparent">
                     <TableHead className="text-primary font-racing">Nome</TableHead>
-                    <TableHead className="text-primary font-racing">Email</TableHead>
+                    <TableHead className="text-primary font-racing">Apelido</TableHead>
+                    <TableHead className="text-primary font-racing">Celular</TableHead>
                     <TableHead className="text-primary font-racing">Série/Ano</TableHead>
                     <TableHead className="text-right text-primary font-racing">Ações</TableHead>
                   </TableRow>
@@ -612,7 +613,8 @@ Regras:
                       className="border-white/10 hover:bg-white/5 transition-colors"
                     >
                       <TableCell className="font-medium">{student.name || 'Sem Nome'}</TableCell>
-                      <TableCell>{student.email || '-'}</TableCell>
+                      <TableCell>{student.nickname || '-'}</TableCell>
+                      <TableCell>{student.phone || '-'}</TableCell>
                       <TableCell>{student.grade || '-'}</TableCell>
                       <TableCell className="text-right">
                         <Button

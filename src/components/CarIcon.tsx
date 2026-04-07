@@ -12,16 +12,16 @@ export function CarIcon({ color, avatarUrl, className, status = 'idle' }: CarIco
   return (
     <div
       className={cn(
-        'relative w-24 h-16 sm:w-32 sm:h-20 flex items-center justify-center',
+        'relative w-24 h-12 sm:w-32 sm:h-16 flex items-center justify-center',
         className,
       )}
     >
       {/* Boost Particles */}
       {status === 'boost' && (
         <div className="absolute -left-6 top-1/2 -translate-y-1/2 flex space-x-1 animate-boost-trail z-0">
-          <div className="w-2 h-2 rounded-full bg-primary" />
-          <div className="w-3 h-3 rounded-full bg-primary/80" />
-          <div className="w-4 h-4 rounded-full bg-white" />
+          <div className="w-3 h-1 rounded-full bg-primary" />
+          <div className="w-5 h-1.5 rounded-full bg-primary/80" />
+          <div className="w-8 h-2 rounded-full bg-white" />
         </div>
       )}
 
@@ -32,15 +32,15 @@ export function CarIcon({ color, avatarUrl, className, status = 'idle' }: CarIco
 
       <div
         className={cn(
-          'relative w-full h-full transition-transform duration-300 z-10',
+          'relative w-full h-full transition-transform duration-300 z-10 flex items-center',
           status === 'idle' && 'animate-idle-car',
           status === 'boost' && 'animate-wheelie',
-          status === 'penalty' && 'animate-penalty',
+          status === 'penalty' && 'opacity-50 grayscale animate-pulse',
         )}
       >
         {/* Avatar in the driver seat with CSS Cutout Effect */}
         {avatarUrl && (
-          <div className="absolute top-[-12px] left-[40%] w-10 h-10 sm:w-12 sm:h-12 z-20 drop-shadow-[0_2px_4px_rgba(0,0,0,0.5)]">
+          <div className="absolute top-[-8px] left-[35%] w-8 h-8 sm:w-10 sm:h-10 z-20 drop-shadow-[0_2px_4px_rgba(0,0,0,0.5)]">
             <div
               className="w-full h-full"
               style={{
@@ -55,32 +55,42 @@ export function CarIcon({ color, avatarUrl, className, status = 'idle' }: CarIco
           </div>
         )}
 
-        {/* SVG Car Body */}
+        {/* Sleek Modern Car SVG */}
         <svg
-          viewBox="0 0 100 50"
-          className="w-full h-full drop-shadow-xl"
-          style={{ filter: `drop-shadow(0 4px 6px ${color}40)` }}
+          viewBox="0 0 120 40"
+          className="w-full h-full drop-shadow-2xl"
+          style={{ filter: `drop-shadow(0 6px 8px ${color}50)` }}
         >
+          {/* Main Body */}
           <path
-            d="M 20 40 L 10 40 C 5 40 5 35 10 30 L 25 15 C 30 10 35 10 45 10 L 70 10 C 80 10 85 15 90 25 L 95 30 C 100 35 95 40 90 40 L 80 40"
+            d="M 10 35 L 5 35 C 2 35 2 30 5 28 L 25 15 C 35 8 50 8 70 12 L 100 18 C 110 20 115 25 115 32 C 115 35 110 35 105 35 Z"
             fill={color}
           />
-          <path d="M 30 15 L 45 15 L 45 25 L 25 25 Z" fill="#ffffff" opacity="0.8" />
-          <path d="M 50 15 L 65 15 C 70 15 75 20 78 25 L 50 25 Z" fill="#ffffff" opacity="0.8" />
-          {/* Wheels */}
-          <circle cx="25" cy="40" r="8" fill="#111" />
-          <circle cx="25" cy="40" r="4" fill="#ccc" />
-          <circle cx="75" cy="40" r="8" fill="#111" />
-          <circle cx="75" cy="40" r="4" fill="#ccc" />
+          {/* Cockpit Glass */}
+          <path d="M 35 15 L 55 12 L 70 16 L 40 18 Z" fill="#ffffff" opacity="0.6" />
+          {/* Rear Spoiler */}
+          <path
+            d="M 5 28 L 15 18 L 20 18 L 10 28 Z"
+            fill={color}
+            style={{ filter: 'brightness(0.8)' }}
+          />
+          <path d="M 0 18 L 25 18 L 25 20 L 0 20 Z" fill="#111" />
+          {/* Side Skirt/Details */}
+          <path d="M 30 30 L 90 30 L 85 32 L 35 32 Z" fill="#111" opacity="0.5" />
+          {/* Modern Wheels */}
+          <circle cx="28" cy="35" r="11" fill="#111" />
+          <circle cx="28" cy="35" r="5" fill="#333" stroke="#666" strokeWidth="1.5" />
+          <circle cx="92" cy="35" r="11" fill="#111" />
+          <circle cx="92" cy="35" r="5" fill="#333" stroke="#666" strokeWidth="1.5" />
           {/* Neon Underglow */}
           <ellipse
-            cx="50"
-            cy="48"
-            rx="40"
+            cx="60"
+            cy="42"
+            rx="50"
             ry="3"
             fill={color}
-            opacity="0.6"
-            style={{ filter: 'blur(4px)' }}
+            opacity="0.8"
+            style={{ filter: 'blur(5px)' }}
           />
         </svg>
       </div>

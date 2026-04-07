@@ -126,7 +126,7 @@ const Quiz = () => {
         }
       }, 1500)
     } else {
-      setPenaltyTime(5)
+      setPenaltyTime(10)
     }
   }
 

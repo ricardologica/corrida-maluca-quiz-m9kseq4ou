@@ -6,7 +6,7 @@ import { useRealtime } from '@/hooks/use-realtime'
 import { TrackLane } from '@/components/TrackLane'
 import { Button } from '@/components/ui/button'
 import type { RecordModel } from 'pocketbase'
-import { Play, Pause, Square, Plus, RotateCcw, Upload, Trash2 } from 'lucide-react'
+import { Play, Pause, Square, Plus, RotateCcw, Upload, Trash2, Copy, FileEdit } from 'lucide-react'
 import {
   Dialog,
   DialogContent,
@@ -27,24 +27,10 @@ import {
 import { Checkbox } from '@/components/ui/checkbox'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
+import { Input } from '@/components/ui/input'
 import { useToast } from '@/hooks/use-toast'
-import { z } from 'zod'
 
 const TOTAL_QUESTIONS = 30
-
-const questionSchema = z.object({
-  statement: z.string(),
-  option_a: z.string(),
-  option_b: z.string(),
-  option_c: z.string(),
-  option_d: z.string(),
-  correct_option: z.enum(['A', 'B', 'C', 'D']),
-  explanation: z.string().optional(),
-  theme: z.string().optional(),
-  difficulty: z.string().optional(),
-  suggested_grade: z.string().optional(),
-})
-const importSchema = z.array(questionSchema)
 
 const Dashboard = () => {
   const { user } = useAuth()
@@ -58,6 +44,8 @@ const Dashboard = () => {
   const [importJson, setImportJson] = useState('')
   const [isImporting, setIsImporting] = useState(false)
   const [importModalOpen, setImportModalOpen] = useState(false)
+  const [manageModalOpen, setManageModalOpen] = useState(false)
+  const [questionIdToDelete, setQuestionIdToDelete] = useState('')
   const [playerToDelete, setPlayerToDelete] = useState<any>(null)
   const [deleteAccountToo, setDeleteAccountToo] = useState(false)
 
@@ -130,13 +118,7 @@ const Dashboard = () => {
       setPlayers((prev) =>
         prev.map((p) => {
           if (p.user_id === e.record.id) {
-            return {
-              ...p,
-              expand: {
-                ...p.expand,
-                user_id: e.record,
-              },
-            }
+            return { ...p, expand: { ...p.expand, user_id: e.record } }
           }
           return p
         }),
@@ -149,11 +131,28 @@ const Dashboard = () => {
     try {
       setIsImporting(true)
       const data = JSON.parse(importJson)
-      const parsed = importSchema.parse(data)
 
       let count = 0
-      for (const q of parsed) {
-        await pb.collection('questions').create(q)
+      for (const item of data) {
+        if (!item.pergunta || !item.alternativas || !item.resposta_correta) {
+          throw new Error('O formato JSON não corresponde ao esperado.')
+        }
+
+        const correctIdx = item.alternativas.indexOf(item.resposta_correta)
+        const correctLetter = ['A', 'B', 'C', 'D'][correctIdx] || 'A'
+
+        await pb.collection('questions').create({
+          external_id: item.id || null,
+          theme: item.tema || '',
+          statement: item.pergunta,
+          option_a: item.alternativas[0] || '',
+          option_b: item.alternativas[1] || '',
+          option_c: item.alternativas[2] || '',
+          option_d: item.alternativas[3] || '',
+          correct_option: correctLetter,
+          explanation: item.explicacao || '',
+          difficulty: item.nivel || 'Médio',
+        })
         count++
       }
       toast({ title: 'Sucesso!', description: `${count} questões importadas.` })
@@ -162,11 +161,52 @@ const Dashboard = () => {
     } catch (e: any) {
       toast({
         title: 'Erro na importação',
-        description: e.errors ? 'JSON inválido (verifique os campos).' : e.message,
+        description: e.message || 'JSON inválido.',
         variant: 'destructive',
       })
     } finally {
       setIsImporting(false)
+    }
+  }
+
+  const generatePrompt = () => {
+    const prompt = `Gere um array JSON de questões de múltipla escolha para o quiz 'Corrida Maluca' seguindo exatamente este modelo:
+[
+  {
+    "id": [proximo_numero],
+    "tema": "Título do Tema",
+    "pergunta": "Texto da pergunta?",
+    "alternativas": ["Opção A", "Opção B", "Opção C", "Opção D"],
+    "resposta_correta": "Texto exato da opção correta",
+    "explicacao": "Explicação pedagógica da resposta",
+    "nivel": "Fácil/Médio/Difícil"
+  }
+]
+Regras: 
+1. O campo 'id' deve ser sequencial.
+2. O campo 'alternativas' deve ter exatamente 4 itens.
+3. A 'resposta_correta' deve ser idêntica a uma das alternativas.`
+
+    navigator.clipboard.writeText(prompt)
+    toast({
+      title: 'Prompt Copiado!',
+      description: 'Cole o prompt no ChatGPT ou similar para gerar novas questões.',
+    })
+  }
+
+  const handleDeleteQuestion = async () => {
+    if (!questionIdToDelete) return
+    try {
+      const records = await pb.collection('questions').getList(1, 1, {
+        filter: `external_id=${questionIdToDelete}`,
+      })
+      if (records.items.length === 0) throw new Error('Questão não encontrada com este ID.')
+
+      await pb.collection('questions').delete(records.items[0].id)
+      toast({ title: 'Sucesso', description: `Questão ID ${questionIdToDelete} foi excluída.` })
+      setQuestionIdToDelete('')
+    } catch (e: any) {
+      toast({ title: 'Erro', description: e.message, variant: 'destructive' })
     }
   }
 
@@ -231,14 +271,14 @@ const Dashboard = () => {
   }
 
   const formattedPlayers = players.map((p) => {
-    const user = p.expand?.user_id
+    const u = p.expand?.user_id
     return {
       id: p.id,
       user_id: p.user_id,
-      name: user?.name || 'Unknown',
-      grade: user?.grade || '',
+      name: u?.name || 'Unknown',
+      grade: u?.grade || '',
       carColor: p.car_color || 'hsl(188, 100%, 50%)',
-      avatarUrl: user?.avatar ? pb.files.getURL(user, user.avatar) : p.avatar_url || '',
+      avatarUrl: u?.avatar ? pb.files.getURL(u, u.avatar) : p.avatar_url || '',
       progress: p.position_x || 0,
       score: p.score || 0,
       wrong_answers: p.wrong_answers || 0,
@@ -281,7 +321,7 @@ const Dashboard = () => {
             </span>
             {session.status.toUpperCase()}
           </h2>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             {session.status === 'lobby' || session.status === 'paused' ? (
               <Button
                 onClick={() => updateSessionStatus('active')}
@@ -318,6 +358,48 @@ const Dashboard = () => {
               <RotateCcw className="w-4 h-4 mr-2" /> Resetar
             </Button>
 
+            <Dialog open={manageModalOpen} onOpenChange={setManageModalOpen}>
+              <DialogTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="bg-orange-500/20 text-orange-400 hover:bg-orange-500/30 border-orange-500/50"
+                >
+                  <FileEdit className="w-4 h-4 mr-2" /> Gerenciar
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="glass-panel border-white/10 text-white sm:max-w-md">
+                <DialogHeader>
+                  <DialogTitle className="font-racing text-xl text-primary">
+                    Gerenciar Questões
+                  </DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4 py-4">
+                  <Label>Excluir Questão por ID</Label>
+                  <div className="flex gap-2">
+                    <Input
+                      placeholder="Ex: 15"
+                      type="number"
+                      className="bg-black/50 border-white/20"
+                      value={questionIdToDelete}
+                      onChange={(e) => setQuestionIdToDelete(e.target.value)}
+                    />
+                    <Button
+                      variant="destructive"
+                      onClick={handleDeleteQuestion}
+                      disabled={!questionIdToDelete}
+                    >
+                      Excluir
+                    </Button>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-2">
+                    Use o ID (external_id) fornecido na importação para deletar uma questão
+                    específica.
+                  </p>
+                </div>
+              </DialogContent>
+            </Dialog>
+
             <Dialog open={importModalOpen} onOpenChange={setImportModalOpen}>
               <DialogTrigger asChild>
                 <Button
@@ -325,18 +407,26 @@ const Dashboard = () => {
                   size="sm"
                   className="bg-purple-500/20 text-purple-400 hover:bg-purple-500/30 border-purple-500/50"
                 >
-                  <Upload className="w-4 h-4 mr-2" /> Importar Questões
+                  <Upload className="w-4 h-4 mr-2" /> Importar
                 </Button>
               </DialogTrigger>
               <DialogContent className="glass-panel border-white/10 text-white sm:max-w-2xl">
                 <DialogHeader>
-                  <DialogTitle className="font-racing text-xl text-primary">
+                  <DialogTitle className="font-racing text-xl text-primary flex justify-between items-center mr-6">
                     Importar Questões (JSON)
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      onClick={generatePrompt}
+                      className="text-xs font-sans font-bold"
+                    >
+                      <Copy className="w-3 h-3 mr-2" /> Gerar Prompt p/ IA
+                    </Button>
                   </DialogTitle>
                 </DialogHeader>
                 <div className="space-y-4">
                   <Textarea
-                    placeholder='[{"statement": "...", "option_a": "...", "correct_option": "A"}]'
+                    placeholder='[{"id": 1, "tema": "Matemática", "pergunta": "...", "alternativas": ["1","2","3","4"], "resposta_correta": "2"}]'
                     className="min-h-[300px] bg-black/50 border-white/20 font-mono text-xs text-white"
                     value={importJson}
                     onChange={(e) => setImportJson(e.target.value)}

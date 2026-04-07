@@ -6,14 +6,19 @@ import { useRealtime } from '@/hooks/use-realtime'
 import { TrackLane } from '@/components/TrackLane'
 import { Button } from '@/components/ui/button'
 import type { RecordModel } from 'pocketbase'
-import { Play, Pause, Square, Plus, RotateCcw, Upload, Trash2, Copy, FileEdit } from 'lucide-react'
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from '@/components/ui/dialog'
+  Play,
+  Pause,
+  Square,
+  Plus,
+  RotateCcw,
+  Upload,
+  Trash2,
+  Copy,
+  FileEdit,
+  Users,
+} from 'lucide-react'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -29,6 +34,14 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Input } from '@/components/ui/input'
 import { useToast } from '@/hooks/use-toast'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
 
 const TOTAL_QUESTIONS = 30
 
@@ -48,6 +61,12 @@ const Dashboard = () => {
   const [questionIdToDelete, setQuestionIdToDelete] = useState('')
   const [playerToDelete, setPlayerToDelete] = useState<any>(null)
   const [deleteAccountToo, setDeleteAccountToo] = useState(false)
+
+  // Student Management State
+  const [students, setStudents] = useState<RecordModel[]>([])
+  const [loadingStudents, setLoadingStudents] = useState(false)
+  const [studentsModalOpen, setStudentsModalOpen] = useState(false)
+  const [studentToDelete, setStudentToDelete] = useState<RecordModel | null>(null)
 
   useEffect(() => {
     if (!user || user.role !== 'teacher') {
@@ -87,6 +106,21 @@ const Dashboard = () => {
     }
   }
 
+  const loadStudents = async () => {
+    setLoadingStudents(true)
+    try {
+      const records = await pb.collection('users').getFullList({
+        filter: 'role="student"',
+        sort: '-created',
+      })
+      setStudents(records)
+    } catch (e) {
+      console.error(e)
+    } finally {
+      setLoadingStudents(false)
+    }
+  }
+
   useRealtime(
     'player_progress',
     (e) => {
@@ -115,6 +149,7 @@ const Dashboard = () => {
   useRealtime(
     'users',
     (e) => {
+      // Update session players
       setPlayers((prev) =>
         prev.map((p) => {
           if (p.user_id === e.record.id) {
@@ -123,8 +158,16 @@ const Dashboard = () => {
           return p
         }),
       )
+      // Update global students list
+      if (e.action === 'create' && e.record.role === 'student') {
+        setStudents((prev) => [e.record, ...prev])
+      } else if (e.action === 'update') {
+        setStudents((prev) => prev.map((s) => (s.id === e.record.id ? e.record : s)))
+      } else if (e.action === 'delete') {
+        setStudents((prev) => prev.filter((s) => s.id !== e.record.id))
+      }
     },
-    !!session,
+    !!user,
   )
 
   const handleImport = async () => {
@@ -210,6 +253,18 @@ Regras:
     }
   }
 
+  const handleDeleteStudent = async () => {
+    if (!studentToDelete) return
+    try {
+      await pb.collection('users').delete(studentToDelete.id)
+      toast({ title: 'Sucesso', description: 'Aluno excluído permanentemente.' })
+    } catch (e: any) {
+      toast({ title: 'Erro ao excluir aluno', description: e.message, variant: 'destructive' })
+    } finally {
+      setStudentToDelete(null)
+    }
+  }
+
   const createSession = async () => {
     const code = Math.random().toString(36).substring(2, 8).toUpperCase()
     try {
@@ -290,231 +345,357 @@ Regras:
 
   if (loading) return <div className="p-8 text-center font-racing">Carregando Painel...</div>
 
-  if (!session) {
-    return (
-      <div className="flex-1 flex items-center justify-center p-4">
-        <div className="glass-panel p-8 text-center space-y-6 rounded-2xl max-w-md w-full animate-fade-in-up">
-          <h2 className="font-racing text-3xl text-primary">Painel do Professor</h2>
-          <p className="text-muted-foreground">
-            Nenhuma corrida ativa no momento. Inicie uma nova para seus alunos entrarem.
-          </p>
-          <Button
-            onClick={createSession}
-            className="w-full bg-primary text-black font-racing text-lg h-14 hover:bg-primary/80 transition-all"
-          >
-            <Plus className="mr-2" /> Criar Nova Corrida
-          </Button>
-        </div>
-      </div>
-    )
-  }
-
   return (
-    <div className="flex-1 flex flex-col md:flex-row gap-4 p-4 overflow-hidden h-full">
-      <div className="flex-1 glass-panel rounded-2xl flex flex-col overflow-hidden">
-        <div className="p-4 border-b border-white/10 flex justify-between items-center bg-black/40 flex-wrap gap-4">
-          <h2 className="font-racing text-xl md:text-2xl flex items-center gap-2">
-            <span
-              className={`animate-pulse ${session.status === 'active' ? 'text-green-500' : session.status === 'paused' ? 'text-yellow-500' : 'text-blue-500'}`}
-            >
-              ●
-            </span>
-            {session.status.toUpperCase()}
-          </h2>
-          <div className="flex flex-wrap gap-2">
-            {session.status === 'lobby' || session.status === 'paused' ? (
-              <Button
-                onClick={() => updateSessionStatus('active')}
-                variant="outline"
-                size="sm"
-                className="bg-green-500/20 text-green-400 hover:bg-green-500/30 border-green-500/50"
-              >
-                <Play className="w-4 h-4 mr-2" /> Iniciar
-              </Button>
-            ) : (
-              <Button
-                onClick={() => updateSessionStatus('paused')}
-                variant="outline"
-                size="sm"
-                className="bg-yellow-500/20 text-yellow-400 hover:bg-yellow-500/30 border-yellow-500/50"
-              >
-                <Pause className="w-4 h-4 mr-2" /> Pausar
-              </Button>
-            )}
+    <>
+      {!session ? (
+        <div className="flex-1 flex flex-col items-center justify-center p-4 gap-4">
+          <div className="glass-panel p-8 text-center space-y-6 rounded-2xl max-w-md w-full animate-fade-in-up">
+            <h2 className="font-racing text-3xl text-primary">Painel do Professor</h2>
+            <p className="text-muted-foreground">
+              Nenhuma corrida ativa no momento. Inicie uma nova para seus alunos entrarem.
+            </p>
             <Button
-              onClick={() => updateSessionStatus('finished')}
-              variant="outline"
-              size="sm"
-              className="bg-red-500/20 text-red-400 hover:bg-red-500/30 border-red-500/50"
+              onClick={createSession}
+              className="w-full bg-primary text-black font-racing text-lg h-14 hover:bg-primary/80 transition-all"
             >
-              <Square className="w-4 h-4 mr-2" /> Encerrar
+              <Plus className="mr-2" /> Criar Nova Corrida
             </Button>
-            <Button
-              onClick={resetSession}
-              variant="outline"
-              size="sm"
-              className="bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 border-blue-500/50"
-            >
-              <RotateCcw className="w-4 h-4 mr-2" /> Resetar
-            </Button>
+          </div>
 
-            <Dialog open={manageModalOpen} onOpenChange={setManageModalOpen}>
-              <DialogTrigger asChild>
+          <div className="flex flex-wrap justify-center gap-3 animate-fade-in-up delay-100 mt-4 max-w-2xl w-full">
+            <Button
+              onClick={() => {
+                setStudentsModalOpen(true)
+                loadStudents()
+              }}
+              variant="outline"
+              className="bg-cyan-500/10 text-cyan-400 border-cyan-500/30 hover:bg-cyan-500/20 flex-1 min-w-[160px]"
+            >
+              <Users className="w-4 h-4 mr-2" /> Gerenciar Alunos
+            </Button>
+            <Button
+              onClick={() => setManageModalOpen(true)}
+              variant="outline"
+              className="bg-orange-500/10 text-orange-400 border-orange-500/30 hover:bg-orange-500/20 flex-1 min-w-[160px]"
+            >
+              <FileEdit className="w-4 h-4 mr-2" /> Gerenciar Questões
+            </Button>
+            <Button
+              onClick={() => setImportModalOpen(true)}
+              variant="outline"
+              className="bg-purple-500/10 text-purple-400 border-purple-500/30 hover:bg-purple-500/20 flex-1 min-w-[160px]"
+            >
+              <Upload className="w-4 h-4 mr-2" /> Importar Questões
+            </Button>
+          </div>
+        </div>
+      ) : (
+        <div className="flex-1 flex flex-col md:flex-row gap-4 p-4 overflow-hidden h-full">
+          <div className="flex-1 glass-panel rounded-2xl flex flex-col overflow-hidden">
+            <div className="p-4 border-b border-white/10 flex justify-between items-center bg-black/40 flex-wrap gap-4">
+              <h2 className="font-racing text-xl md:text-2xl flex items-center gap-2">
+                <span
+                  className={`animate-pulse ${session.status === 'active' ? 'text-green-500' : session.status === 'paused' ? 'text-yellow-500' : 'text-blue-500'}`}
+                >
+                  ●
+                </span>
+                {session.status.toUpperCase()}
+              </h2>
+              <div className="flex flex-wrap gap-2">
+                {session.status === 'lobby' || session.status === 'paused' ? (
+                  <Button
+                    onClick={() => updateSessionStatus('active')}
+                    variant="outline"
+                    size="sm"
+                    className="bg-green-500/20 text-green-400 hover:bg-green-500/30 border-green-500/50"
+                  >
+                    <Play className="w-4 h-4 mr-2" /> Iniciar
+                  </Button>
+                ) : (
+                  <Button
+                    onClick={() => updateSessionStatus('paused')}
+                    variant="outline"
+                    size="sm"
+                    className="bg-yellow-500/20 text-yellow-400 hover:bg-yellow-500/30 border-yellow-500/50"
+                  >
+                    <Pause className="w-4 h-4 mr-2" /> Pausar
+                  </Button>
+                )}
                 <Button
+                  onClick={() => updateSessionStatus('finished')}
+                  variant="outline"
+                  size="sm"
+                  className="bg-red-500/20 text-red-400 hover:bg-red-500/30 border-red-500/50"
+                >
+                  <Square className="w-4 h-4 mr-2" /> Encerrar
+                </Button>
+                <Button
+                  onClick={resetSession}
+                  variant="outline"
+                  size="sm"
+                  className="bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 border-blue-500/50"
+                >
+                  <RotateCcw className="w-4 h-4 mr-2" /> Resetar
+                </Button>
+
+                <Button
+                  onClick={() => {
+                    setStudentsModalOpen(true)
+                    loadStudents()
+                  }}
+                  variant="outline"
+                  size="sm"
+                  className="bg-cyan-500/20 text-cyan-400 hover:bg-cyan-500/30 border-cyan-500/50"
+                >
+                  <Users className="w-4 h-4 mr-2" /> Alunos
+                </Button>
+
+                <Button
+                  onClick={() => setManageModalOpen(true)}
                   variant="outline"
                   size="sm"
                   className="bg-orange-500/20 text-orange-400 hover:bg-orange-500/30 border-orange-500/50"
                 >
                   <FileEdit className="w-4 h-4 mr-2" /> Gerenciar
                 </Button>
-              </DialogTrigger>
-              <DialogContent className="glass-panel border-white/10 text-white sm:max-w-md">
-                <DialogHeader>
-                  <DialogTitle className="font-racing text-xl text-primary">
-                    Gerenciar Questões
-                  </DialogTitle>
-                </DialogHeader>
-                <div className="space-y-4 py-4">
-                  <Label>Excluir Questão por ID</Label>
-                  <div className="flex gap-2">
-                    <Input
-                      placeholder="Ex: 15"
-                      type="number"
-                      className="bg-black/50 border-white/20"
-                      value={questionIdToDelete}
-                      onChange={(e) => setQuestionIdToDelete(e.target.value)}
-                    />
-                    <Button
-                      variant="destructive"
-                      onClick={handleDeleteQuestion}
-                      disabled={!questionIdToDelete}
-                    >
-                      Excluir
-                    </Button>
-                  </div>
-                  <p className="text-xs text-muted-foreground mt-2">
-                    Use o ID (external_id) fornecido na importação para deletar uma questão
-                    específica.
-                  </p>
-                </div>
-              </DialogContent>
-            </Dialog>
 
-            <Dialog open={importModalOpen} onOpenChange={setImportModalOpen}>
-              <DialogTrigger asChild>
                 <Button
+                  onClick={() => setImportModalOpen(true)}
                   variant="outline"
                   size="sm"
                   className="bg-purple-500/20 text-purple-400 hover:bg-purple-500/30 border-purple-500/50"
                 >
                   <Upload className="w-4 h-4 mr-2" /> Importar
                 </Button>
-              </DialogTrigger>
-              <DialogContent className="glass-panel border-white/10 text-white sm:max-w-2xl">
-                <DialogHeader>
-                  <DialogTitle className="font-racing text-xl text-primary flex justify-between items-center mr-6">
-                    Importar Questões (JSON)
-                    <Button
-                      size="sm"
-                      variant="secondary"
-                      onClick={generatePrompt}
-                      className="text-xs font-sans font-bold"
-                    >
-                      <Copy className="w-3 h-3 mr-2" /> Gerar Prompt p/ IA
-                    </Button>
-                  </DialogTitle>
-                </DialogHeader>
-                <div className="space-y-4">
-                  <Textarea
-                    placeholder='[{"id": 1, "tema": "Matemática", "pergunta": "...", "alternativas": ["1","2","3","4"], "resposta_correta": "2"}]'
-                    className="min-h-[300px] bg-black/50 border-white/20 font-mono text-xs text-white"
-                    value={importJson}
-                    onChange={(e) => setImportJson(e.target.value)}
-                  />
-                  <Button
-                    onClick={handleImport}
-                    disabled={isImporting || !importJson.trim()}
-                    className="w-full bg-primary hover:bg-primary/80 text-black font-bold font-racing"
-                  >
-                    {isImporting ? 'Importando...' : 'Confirmar Importação'}
-                  </Button>
-                </div>
-              </DialogContent>
-            </Dialog>
-          </div>
-          <div className="font-racing text-sm text-muted-foreground">
-            CÓDIGO:{' '}
-            <span className="text-white text-2xl tracking-widest bg-black/50 px-3 py-1 rounded border border-white/20 ml-2">
-              {session.code}
-            </span>
-          </div>
-        </div>
-
-        <div className="flex-1 overflow-y-auto overflow-x-hidden relative scrollbar-hide py-4">
-          {formattedPlayers.map((player) => (
-            <TrackLane key={player.id} player={player} totalQuestions={TOTAL_QUESTIONS} />
-          ))}
-          {formattedPlayers.length === 0 && (
-            <div className="h-full flex flex-col items-center justify-center text-muted-foreground font-racing p-4 text-center space-y-4">
-              <div className="text-5xl animate-bounce">🏎️</div>
-              <div className="text-xl">Peça aos alunos para entrarem com o código:</div>
-              <div className="text-5xl text-primary tracking-widest">{session.code}</div>
+              </div>
+              <div className="font-racing text-sm text-muted-foreground">
+                CÓDIGO:{' '}
+                <span className="text-white text-2xl tracking-widest bg-black/50 px-3 py-1 rounded border border-white/20 ml-2">
+                  {session.code}
+                </span>
+              </div>
             </div>
-          )}
-        </div>
-      </div>
 
-      <div className="w-full md:w-80 glass-panel rounded-2xl flex flex-col overflow-hidden">
-        <div className="p-4 border-b border-white/10 bg-black/40 text-center">
-          <h2 className="font-racing text-lg text-warning tracking-widest">🏆 CLASSIFICAÇÃO</h2>
-        </div>
+            <div className="flex-1 overflow-y-auto overflow-x-hidden relative scrollbar-hide py-4">
+              {formattedPlayers.map((player) => (
+                <TrackLane key={player.id} player={player} totalQuestions={TOTAL_QUESTIONS} />
+              ))}
+              {formattedPlayers.length === 0 && (
+                <div className="h-full flex flex-col items-center justify-center text-muted-foreground font-racing p-4 text-center space-y-4">
+                  <div className="text-5xl animate-bounce">🏎️</div>
+                  <div className="text-xl">Peça aos alunos para entrarem com o código:</div>
+                  <div className="text-5xl text-primary tracking-widest">{session.code}</div>
+                </div>
+              )}
+            </div>
+          </div>
 
-        <div className="flex-1 overflow-y-auto p-4 space-y-3">
-          {sortedPlayers.map((player, idx) => (
-            <div
-              key={player.id}
-              className={`flex items-center gap-3 p-3 rounded-xl border transition-all ${idx === 0 && player.progress > 0 ? 'bg-warning/10 border-warning shadow-[0_0_10px_rgba(254,228,64,0.2)]' : 'bg-black/30 border-white/5'}`}
-            >
-              <div className="font-racing text-xl font-bold text-muted-foreground w-6 text-center">
-                {idx + 1}
-              </div>
-              <img
-                src={player.avatarUrl}
-                alt={player.name}
-                className="w-10 h-10 rounded-full border-2 border-white/20 object-cover"
-              />
-              <div className="flex-1 min-w-0">
-                <div className="font-bold truncate text-sm">{player.name}</div>
-                <div className="text-xs text-muted-foreground">{player.grade}</div>
-                <div className="flex gap-2 text-[10px] mt-1 font-bold">
-                  <span className="text-accent">{player.score} ACERTOS</span>
-                  <span className="text-destructive">{player.wrong_answers} ERROS</span>
-                </div>
-              </div>
-              <div className="text-right flex items-center gap-3">
-                <div className="font-racing text-sm text-primary">
-                  {Math.round((player.progress / TOTAL_QUESTIONS) * 100)}%
-                </div>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8 text-red-500 hover:text-red-400 hover:bg-red-500/10"
-                  onClick={() => setPlayerToDelete(player)}
-                  title="Remover Aluno"
+          <div className="w-full md:w-80 glass-panel rounded-2xl flex flex-col overflow-hidden">
+            <div className="p-4 border-b border-white/10 bg-black/40 text-center">
+              <h2 className="font-racing text-lg text-warning tracking-widest">🏆 CLASSIFICAÇÃO</h2>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-4 space-y-3">
+              {sortedPlayers.map((player, idx) => (
+                <div
+                  key={player.id}
+                  className={`flex items-center gap-3 p-3 rounded-xl border transition-all ${idx === 0 && player.progress > 0 ? 'bg-warning/10 border-warning shadow-[0_0_10px_rgba(254,228,64,0.2)]' : 'bg-black/30 border-white/5'}`}
                 >
-                  <Trash2 className="w-4 h-4" />
-                </Button>
-              </div>
+                  <div className="font-racing text-xl font-bold text-muted-foreground w-6 text-center">
+                    {idx + 1}
+                  </div>
+                  <img
+                    src={player.avatarUrl}
+                    alt={player.name}
+                    className="w-10 h-10 rounded-full border-2 border-white/20 object-cover"
+                  />
+                  <div className="flex-1 min-w-0">
+                    <div className="font-bold truncate text-sm">{player.name}</div>
+                    <div className="text-xs text-muted-foreground">{player.grade}</div>
+                    <div className="flex gap-2 text-[10px] mt-1 font-bold">
+                      <span className="text-accent">{player.score} ACERTOS</span>
+                      <span className="text-destructive">{player.wrong_answers} ERROS</span>
+                    </div>
+                  </div>
+                  <div className="text-right flex items-center gap-3">
+                    <div className="font-racing text-sm text-primary">
+                      {Math.round((player.progress / TOTAL_QUESTIONS) * 100)}%
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 text-red-500 hover:text-red-400 hover:bg-red-500/10"
+                      onClick={() => setPlayerToDelete(player)}
+                      title="Remover Aluno"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  </div>
+                </div>
+              ))}
+              {sortedPlayers.length === 0 && (
+                <div className="text-center text-sm text-muted-foreground mt-10">
+                  Nenhum piloto na pista.
+                </div>
+              )}
             </div>
-          ))}
-          {sortedPlayers.length === 0 && (
-            <div className="text-center text-sm text-muted-foreground mt-10">
-              Nenhum piloto na pista.
-            </div>
-          )}
+          </div>
         </div>
-      </div>
+      )}
 
+      {/* -- Dialogs -- */}
+
+      {/* Manage Students Dialog */}
+      <Dialog open={studentsModalOpen} onOpenChange={setStudentsModalOpen}>
+        <DialogContent className="glass-panel border-white/10 text-white sm:max-w-3xl">
+          <DialogHeader>
+            <DialogTitle className="font-racing text-xl text-primary flex items-center gap-2">
+              <Users className="w-5 h-5" /> Gerenciar Alunos
+            </DialogTitle>
+          </DialogHeader>
+          <div className="overflow-y-auto max-h-[60vh] py-4 pr-2">
+            {loadingStudents ? (
+              <div className="text-center py-8 text-muted-foreground">Carregando alunos...</div>
+            ) : students.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                Nenhum aluno encontrado no sistema.
+              </div>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow className="border-white/10 hover:bg-transparent">
+                    <TableHead className="text-primary font-racing">Nome</TableHead>
+                    <TableHead className="text-primary font-racing">Email</TableHead>
+                    <TableHead className="text-primary font-racing">Série/Ano</TableHead>
+                    <TableHead className="text-right text-primary font-racing">Ações</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {students.map((student) => (
+                    <TableRow
+                      key={student.id}
+                      className="border-white/10 hover:bg-white/5 transition-colors"
+                    >
+                      <TableCell className="font-medium">{student.name || 'Sem Nome'}</TableCell>
+                      <TableCell>{student.email || '-'}</TableCell>
+                      <TableCell>{student.grade || '-'}</TableCell>
+                      <TableCell className="text-right">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-red-400 hover:text-red-300 hover:bg-red-500/20"
+                          onClick={() => setStudentToDelete(student)}
+                        >
+                          <Trash2 className="w-4 h-4 mr-2" />
+                          Excluir
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Student Confirmation */}
+      <AlertDialog
+        open={!!studentToDelete}
+        onOpenChange={(open) => !open && setStudentToDelete(null)}
+      >
+        <AlertDialogContent className="glass-panel border-white/10 text-white">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="font-racing text-xl text-primary">
+              Remover Aluno
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-muted-foreground">
+              Tem certeza que deseja excluir este jogador? Esta ação removerá permanentemente o
+              aluno e todo o seu histórico de progresso.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="bg-transparent border-white/20 hover:bg-white/10 text-white">
+              Cancelar
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteStudent}
+              className="bg-destructive hover:bg-destructive/80 text-white"
+            >
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Manage Questions Dialog */}
+      <Dialog open={manageModalOpen} onOpenChange={setManageModalOpen}>
+        <DialogContent className="glass-panel border-white/10 text-white sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="font-racing text-xl text-primary">
+              Gerenciar Questões
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <Label>Excluir Questão por ID</Label>
+            <div className="flex gap-2">
+              <Input
+                placeholder="Ex: 15"
+                type="number"
+                className="bg-black/50 border-white/20"
+                value={questionIdToDelete}
+                onChange={(e) => setQuestionIdToDelete(e.target.value)}
+              />
+              <Button
+                variant="destructive"
+                onClick={handleDeleteQuestion}
+                disabled={!questionIdToDelete}
+              >
+                Excluir
+              </Button>
+            </div>
+            <p className="text-xs text-muted-foreground mt-2">
+              Use o ID (external_id) fornecido na importação para deletar uma questão específica.
+            </p>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Import Questions Dialog */}
+      <Dialog open={importModalOpen} onOpenChange={setImportModalOpen}>
+        <DialogContent className="glass-panel border-white/10 text-white sm:max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="font-racing text-xl text-primary flex justify-between items-center mr-6">
+              Importar Questões (JSON)
+              <Button
+                size="sm"
+                variant="secondary"
+                onClick={generatePrompt}
+                className="text-xs font-sans font-bold"
+              >
+                <Copy className="w-3 h-3 mr-2" /> Gerar Prompt p/ IA
+              </Button>
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <Textarea
+              placeholder='[{"id": 1, "tema": "Matemática", "pergunta": "...", "alternativas": ["1","2","3","4"], "resposta_correta": "2"}]'
+              className="min-h-[300px] bg-black/50 border-white/20 font-mono text-xs text-white"
+              value={importJson}
+              onChange={(e) => setImportJson(e.target.value)}
+            />
+            <Button
+              onClick={handleImport}
+              disabled={isImporting || !importJson.trim()}
+              className="w-full bg-primary hover:bg-primary/80 text-black font-bold font-racing"
+            >
+              {isImporting ? 'Importando...' : 'Confirmar Importação'}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Remove Player from Session Dialog */}
       <AlertDialog
         open={!!playerToDelete}
         onOpenChange={(open) => !open && setPlayerToDelete(null)}
@@ -522,7 +703,7 @@ Regras:
         <AlertDialogContent className="glass-panel border-white/10 text-white">
           <AlertDialogHeader>
             <AlertDialogTitle className="font-racing text-xl text-primary">
-              Remover Aluno
+              Remover Aluno da Corrida
             </AlertDialogTitle>
             <AlertDialogDescription className="text-muted-foreground">
               Tem certeza que deseja remover <strong>{playerToDelete?.name}</strong> da corrida
@@ -555,7 +736,8 @@ Regras:
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </div>
+    </>
   )
 }
+
 export default Dashboard

@@ -24,8 +24,9 @@ export function TrackLane({ player, totalQuestions }: TrackLaneProps) {
       >
         <div className="relative">
           {/* Player Name Bubble */}
-          <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-black/80 px-2 py-1 rounded text-xs font-racing whitespace-nowrap border border-white/20 shadow-lg">
+          <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-black/80 px-2 py-1 rounded text-xs font-racing whitespace-nowrap border border-white/20 shadow-lg uppercase">
             {player.name}
+            {player.grade ? `_${player.grade}` : ''}
           </div>
           <CarIcon
             color={player.carColor}

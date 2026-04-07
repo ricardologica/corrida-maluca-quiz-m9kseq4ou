@@ -6,7 +6,7 @@ import { useRealtime } from '@/hooks/use-realtime'
 import { TrackLane } from '@/components/TrackLane'
 import { Button } from '@/components/ui/button'
 import type { RecordModel } from 'pocketbase'
-import { Play, Pause, Square, Plus } from 'lucide-react'
+import { Play, Pause, Square, Plus, RotateCcw } from 'lucide-react'
 
 const TOTAL_QUESTIONS = 30
 
@@ -105,6 +105,24 @@ const Dashboard = () => {
     }
   }
 
+  const resetSession = async () => {
+    if (!session) return
+    try {
+      await pb.collection('game_sessions').update(session.id, { status: 'lobby' })
+      for (const p of players) {
+        await pb.collection('player_progress').update(p.id, {
+          position_x: 0,
+          score: 0,
+          wrong_answers: 0,
+          current_question_index: 0,
+          status: 'idle',
+        })
+      }
+    } catch (e) {
+      console.error(e)
+    }
+  }
+
   const formattedPlayers = players.map((p) => ({
     id: p.id,
     name: p.expand?.user_id?.name || 'Unknown',
@@ -179,6 +197,14 @@ const Dashboard = () => {
               className="bg-red-500/20 text-red-400 hover:bg-red-500/30 border-red-500/50"
             >
               <Square className="w-4 h-4 mr-2" /> Encerrar
+            </Button>
+            <Button
+              onClick={resetSession}
+              variant="outline"
+              size="sm"
+              className="bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 border-blue-500/50"
+            >
+              <RotateCcw className="w-4 h-4 mr-2" /> Resetar
             </Button>
           </div>
           <div className="font-racing text-sm text-muted-foreground">

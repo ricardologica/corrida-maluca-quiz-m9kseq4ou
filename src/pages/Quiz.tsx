@@ -101,7 +101,9 @@ const Quiz = () => {
             }
           : null,
       )
-    } catch (e) {}
+    } catch (e) {
+      console.error(e)
+    }
 
     if (isCorrect) {
       setTimeout(async () => {
@@ -113,7 +115,9 @@ const Quiz = () => {
           setProgressData((prev) =>
             prev ? { ...prev, status: 'idle', current_question_index: currentIdx + 1 } : null,
           )
-        } catch (e) {}
+        } catch (e) {
+          console.error(e)
+        }
 
         if (currentIdx + 1 >= TOTAL_QUESTIONS) {
           navigate('/')
@@ -143,7 +147,9 @@ const Quiz = () => {
                   d ? { ...d, status: 'idle', current_question_index: currentIdx + 1 } : null,
                 )
               })
-              .catch(() => {})
+              .catch((e) => {
+                console.error(e)
+              })
 
             if (currentIdx + 1 >= TOTAL_QUESTIONS) {
               navigate('/')

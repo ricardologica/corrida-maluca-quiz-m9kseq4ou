@@ -37,6 +37,7 @@ const Dashboard = () => {
         loadPlayers(records.items[0].id)
       }
     } catch (e) {
+      console.error(e)
     } finally {
       setLoading(false)
     }
@@ -50,7 +51,9 @@ const Dashboard = () => {
         sort: '-position_x,updated',
       })
       setPlayers(records)
-    } catch (e) {}
+    } catch (e) {
+      console.error(e)
+    }
   }
 
   useRealtime(
@@ -88,14 +91,18 @@ const Dashboard = () => {
       })
       setSession(newSession)
       setPlayers([])
-    } catch (e) {}
+    } catch (e) {
+      console.error(e)
+    }
   }
 
   const updateSessionStatus = async (status: string) => {
     if (!session) return
     try {
       await pb.collection('game_sessions').update(session.id, { status })
-    } catch (e) {}
+    } catch (e) {
+      console.error(e)
+    }
   }
 
   const formattedPlayers = players.map((p) => ({

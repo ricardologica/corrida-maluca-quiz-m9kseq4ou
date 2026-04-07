@@ -6,17 +6,46 @@ import { useRealtime } from '@/hooks/use-realtime'
 import { TrackLane } from '@/components/TrackLane'
 import { Button } from '@/components/ui/button'
 import type { RecordModel } from 'pocketbase'
-import { Play, Pause, Square, Plus, RotateCcw } from 'lucide-react'
+import { Play, Pause, Square, Plus, RotateCcw, Upload } from 'lucide-react'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog'
+import { Textarea } from '@/components/ui/textarea'
+import { useToast } from '@/hooks/use-toast'
+import { z } from 'zod'
 
 const TOTAL_QUESTIONS = 30
+
+const questionSchema = z.object({
+  statement: z.string(),
+  option_a: z.string(),
+  option_b: z.string(),
+  option_c: z.string(),
+  option_d: z.string(),
+  correct_option: z.enum(['A', 'B', 'C', 'D']),
+  explanation: z.string().optional(),
+  theme: z.string().optional(),
+  difficulty: z.string().optional(),
+  suggested_grade: z.string().optional(),
+})
+const importSchema = z.array(questionSchema)
 
 const Dashboard = () => {
   const { user } = useAuth()
   const navigate = useNavigate()
 
+  const { toast } = useToast()
   const [session, setSession] = useState<RecordModel | null>(null)
   const [players, setPlayers] = useState<RecordModel[]>([])
   const [loading, setLoading] = useState(true)
+
+  const [importJson, setImportJson] = useState('')
+  const [isImporting, setIsImporting] = useState(false)
+  const [importModalOpen, setImportModalOpen] = useState(false)
 
   useEffect(() => {
     if (!user || user.role !== 'teacher') {
@@ -80,6 +109,52 @@ const Dashboard = () => {
     },
     !!user,
   )
+
+  useRealtime(
+    'users',
+    (e) => {
+      setPlayers((prev) =>
+        prev.map((p) => {
+          if (p.user_id === e.record.id) {
+            return {
+              ...p,
+              expand: {
+                ...p.expand,
+                user_id: e.record,
+              },
+            }
+          }
+          return p
+        }),
+      )
+    },
+    !!session,
+  )
+
+  const handleImport = async () => {
+    try {
+      setIsImporting(true)
+      const data = JSON.parse(importJson)
+      const parsed = importSchema.parse(data)
+
+      let count = 0
+      for (const q of parsed) {
+        await pb.collection('questions').create(q)
+        count++
+      }
+      toast({ title: 'Sucesso!', description: `${count} questões importadas.` })
+      setImportModalOpen(false)
+      setImportJson('')
+    } catch (e: any) {
+      toast({
+        title: 'Erro na importação',
+        description: e.errors ? 'JSON inválido (verifique os campos).' : e.message,
+        variant: 'destructive',
+      })
+    } finally {
+      setIsImporting(false)
+    }
+  }
 
   const createSession = async () => {
     const code = Math.random().toString(36).substring(2, 8).toUpperCase()
@@ -206,6 +281,40 @@ const Dashboard = () => {
             >
               <RotateCcw className="w-4 h-4 mr-2" /> Resetar
             </Button>
+
+            <Dialog open={importModalOpen} onOpenChange={setImportModalOpen}>
+              <DialogTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="bg-purple-500/20 text-purple-400 hover:bg-purple-500/30 border-purple-500/50"
+                >
+                  <Upload className="w-4 h-4 mr-2" /> Importar Questões
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="glass-panel border-white/10 text-white sm:max-w-2xl">
+                <DialogHeader>
+                  <DialogTitle className="font-racing text-xl text-primary">
+                    Importar Questões (JSON)
+                  </DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4">
+                  <Textarea
+                    placeholder='[{"statement": "...", "option_a": "...", "correct_option": "A"}]'
+                    className="min-h-[300px] bg-black/50 border-white/20 font-mono text-xs text-white"
+                    value={importJson}
+                    onChange={(e) => setImportJson(e.target.value)}
+                  />
+                  <Button
+                    onClick={handleImport}
+                    disabled={isImporting || !importJson.trim()}
+                    className="w-full bg-primary hover:bg-primary/80 text-black font-bold font-racing"
+                  >
+                    {isImporting ? 'Importando...' : 'Confirmar Importação'}
+                  </Button>
+                </div>
+              </DialogContent>
+            </Dialog>
           </div>
           <div className="font-racing text-sm text-muted-foreground">
             CÓDIGO:{' '}

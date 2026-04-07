@@ -32,6 +32,8 @@ const Garage = () => {
   const [grade, setGrade] = useState('')
   const [color, setColor] = useState(CAR_COLORS[0])
   const [loading, setLoading] = useState(false)
+  const [avatarFile, setAvatarFile] = useState<File | null>(null)
+  const [previewUrl, setPreviewUrl] = useState<string>('')
 
   useEffect(() => {
     if (!currentSessionId) {
@@ -40,7 +42,15 @@ const Garage = () => {
   }, [currentSessionId, navigate])
 
   const seed = name.length > 0 ? name.length : Math.floor(Math.random() * 10)
-  const avatarUrl = `https://img.usecurling.com/ppl/medium?gender=male&seed=${seed}`
+  const avatarUrl = previewUrl || `https://img.usecurling.com/ppl/medium?gender=male&seed=${seed}`
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0]
+      setAvatarFile(file)
+      setPreviewUrl(URL.createObjectURL(file))
+    }
+  }
 
   const handleStart = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -55,14 +65,21 @@ const Garage = () => {
       const password = 'studentpassword123'
 
       // Automatically register the student as a guest
-      const user = await pb.collection('users').create({
-        email,
-        password,
-        passwordConfirm: password,
-        name: usernameGrade,
-        grade,
-        role: 'student',
-      })
+      const fd = new FormData()
+      fd.append('email', email)
+      fd.append('password', password)
+      fd.append('passwordConfirm', password)
+      fd.append('name', name)
+      fd.append('grade', grade)
+      fd.append('role', 'student')
+      if (avatarFile) fd.append('avatar', avatarFile)
+
+      const user = await pb.collection('users').create(fd)
+
+      let finalAvatarUrl = avatarUrl
+      if (user.avatar) {
+        finalAvatarUrl = pb.files.getURL(user, user.avatar)
+      }
 
       // Auto login
       await pb.collection('users').authWithPassword(email, password)
@@ -76,7 +93,7 @@ const Garage = () => {
         current_question_index: 0,
         position_x: 0,
         car_color: color,
-        avatar_url: avatarUrl,
+        avatar_url: finalAvatarUrl,
         status: 'idle',
       })
 
@@ -142,13 +159,22 @@ const Garage = () => {
             </Select>
           </div>
 
-          <Button
-            type="button"
-            variant="outline"
-            className="w-full h-12 border-dashed border-white/30 text-muted-foreground hover:text-white hover:bg-white/10"
-          >
-            <Camera className="w-5 h-5 mr-2" /> Tirar Foto (Simulado)
-          </Button>
+          <div className="relative">
+            <input
+              type="file"
+              accept="image/*"
+              onChange={handleFileChange}
+              className="absolute inset-0 opacity-0 cursor-pointer w-full h-full z-10"
+            />
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full h-12 border-dashed border-white/30 text-muted-foreground hover:text-white hover:bg-white/10"
+            >
+              <Camera className="w-5 h-5 mr-2" />{' '}
+              {avatarFile ? 'Foto Carregada!' : 'Tirar Foto / Enviar'}
+            </Button>
+          </div>
 
           <Button
             type="submit"

@@ -8,6 +8,9 @@ interface TrackLaneProps {
 
 export function TrackLane({ player, totalQuestions }: TrackLaneProps) {
   const percentage = Math.min((player.progress / totalQuestions) * 100, 100)
+  const formattedName = player.name ? player.name.split(' ')[0].toLowerCase() : 'piloto'
+  const formattedGrade = player.grade ? player.grade.replace(/[^0-9]/g, '') + 'ano' : ''
+  const displayLabel = formattedGrade ? `${formattedName}_${formattedGrade}` : formattedName
 
   return (
     <div className="relative w-full h-24 sm:h-32 border-b-2 border-dashed border-white/10 overflow-hidden flex items-end">
@@ -25,8 +28,7 @@ export function TrackLane({ player, totalQuestions }: TrackLaneProps) {
         <div className="relative">
           {/* Player Name Bubble */}
           <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-black/80 px-2 py-1 rounded text-xs font-racing whitespace-nowrap border border-white/20 shadow-lg uppercase">
-            {player.name}
-            {player.grade ? `_${player.grade}` : ''}
+            {displayLabel}
           </div>
           <CarIcon
             color={player.carColor}

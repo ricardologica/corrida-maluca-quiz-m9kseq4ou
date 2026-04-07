@@ -40,7 +40,13 @@ export function CarIcon({ color, avatarUrl, className, status = 'idle' }: CarIco
       >
         {/* Avatar in the driver seat */}
         {avatarUrl && (
-          <div className="absolute top-[-10px] left-[45%] w-8 h-8 sm:w-10 sm:h-10 rounded-full border-2 border-white overflow-hidden bg-muted z-20 shadow-lg">
+          <div
+            className="absolute top-[-10px] left-[45%] w-8 h-8 sm:w-10 sm:h-10 rounded-full border-2 border-white bg-muted z-20 shadow-lg"
+            style={{
+              clipPath: 'circle(50% at 50% 50%)',
+              WebkitClipPath: 'circle(50% at 50% 50%)',
+            }}
+          >
             <img src={avatarUrl} alt="Driver" className="w-full h-full object-cover" />
           </div>
         )}

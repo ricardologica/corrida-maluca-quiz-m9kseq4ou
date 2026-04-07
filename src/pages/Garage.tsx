@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -9,9 +9,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { gameStore } from '@/stores/main'
+import { useGameStore, gameStore } from '@/stores/main'
 import { CarIcon } from '@/components/CarIcon'
 import { Camera } from 'lucide-react'
+import pb from '@/lib/pocketbase/client'
+import { useToast } from '@/hooks/use-toast'
 
 const CAR_COLORS = [
   'hsl(188, 100%, 50%)', // Blue
@@ -23,31 +25,72 @@ const CAR_COLORS = [
 
 const Garage = () => {
   const navigate = useNavigate()
+  const { toast } = useToast()
+  const { currentSessionId } = useGameStore()
+
   const [name, setName] = useState('')
   const [grade, setGrade] = useState('')
   const [color, setColor] = useState(CAR_COLORS[0])
+  const [loading, setLoading] = useState(false)
 
-  // Fake avatar generation based on name length or random
+  useEffect(() => {
+    if (!currentSessionId) {
+      navigate('/')
+    }
+  }, [currentSessionId, navigate])
+
   const seed = name.length > 0 ? name.length : Math.floor(Math.random() * 10)
   const avatarUrl = `https://img.usecurling.com/ppl/medium?gender=male&seed=${seed}`
 
-  const handleStart = (e: React.FormEvent) => {
+  const handleStart = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!name || !grade) return
+    if (!name || !grade || !currentSessionId) return
+    setLoading(true)
 
-    gameStore.setCurrentUser({
-      id: `player_${Date.now()}`,
-      name,
-      grade,
-      carColor: color,
-      avatarUrl,
-      progress: 0,
-      isFinished: false,
-      status: 'idle',
-      speed: 0,
-    })
+    try {
+      const safeName = name.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase()
+      const safeGrade = grade.replace(/[^a-zA-Z0-9]/g, '').toLowerCase()
+      const usernameGrade = `${safeName}_${safeGrade}`
+      const email = `${usernameGrade}_${Date.now()}@student.local`
+      const password = 'studentpassword123'
 
-    navigate('/quiz')
+      // Automatically register the student as a guest
+      const user = await pb.collection('users').create({
+        email,
+        password,
+        passwordConfirm: password,
+        name: usernameGrade,
+        grade,
+        role: 'student',
+      })
+
+      // Auto login
+      await pb.collection('users').authWithPassword(email, password)
+
+      // Join the race session
+      const progress = await pb.collection('player_progress').create({
+        user_id: user.id,
+        session_id: currentSessionId,
+        score: 0,
+        wrong_answers: 0,
+        current_question_index: 0,
+        position_x: 0,
+        car_color: color,
+        avatar_url: avatarUrl,
+        status: 'idle',
+      })
+
+      gameStore.setProgress(progress.id)
+      navigate('/quiz')
+    } catch (err) {
+      toast({
+        title: 'Erro na Garagem',
+        description: 'Não foi possível entrar na corrida. Tente novamente.',
+        variant: 'destructive',
+      })
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
@@ -59,7 +102,7 @@ const Garage = () => {
           <div className="relative mb-8">
             <CarIcon color={color} avatarUrl={avatarUrl} className="scale-125" />
             <div className="absolute -top-12 left-1/2 -translate-x-1/2 font-racing text-sm bg-black/80 px-3 py-1 rounded-full whitespace-nowrap border border-white/20">
-              {name ? `${name}_${grade.replace('º Ano', 'ano')}` : 'Piloto_Desconhecido'}
+              {name && grade ? `${name}_${grade.replace(/[^0-9]/g, '')}ano` : 'Piloto_Desconhecido'}
             </div>
           </div>
 
@@ -81,7 +124,7 @@ const Garage = () => {
             <Input
               placeholder="Seu Nome"
               value={name}
-              onChange={(e) => setName(e.target.value.replace(/\s+/g, '_'))}
+              onChange={(e) => setName(e.target.value)}
               className="bg-black/50 border-white/20 h-12"
               required
             />
@@ -111,14 +154,13 @@ const Garage = () => {
             type="submit"
             className="w-full h-14 text-lg font-bold font-racing mt-4 transition-all hover:scale-[1.02]"
             style={{ backgroundColor: color, color: '#000', boxShadow: `0 0 15px ${color}80` }}
-            disabled={!name || !grade}
+            disabled={!name || !grade || loading}
           >
-            Ir para a Pista!
+            {loading ? 'Ajustando Motores...' : 'Ir para a Pista!'}
           </Button>
         </form>
       </div>
     </div>
   )
 }
-
 export default Garage

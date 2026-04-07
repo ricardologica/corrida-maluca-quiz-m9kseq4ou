@@ -2,20 +2,36 @@ import { Link, useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { useState } from 'react'
-import { gameStore } from '@/stores/main'
 import { CarIcon } from '@/components/CarIcon'
+import { useToast } from '@/hooks/use-toast'
+import pb from '@/lib/pocketbase/client'
+import { gameStore } from '@/stores/main'
 
 const Index = () => {
   const [code, setCode] = useState('')
+  const [loading, setLoading] = useState(false)
   const navigate = useNavigate()
-  const { raceCode } = gameStore.getSnapshot()
+  const { toast } = useToast()
 
-  const handleJoin = (e: React.FormEvent) => {
+  const handleJoin = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (code.toUpperCase() === raceCode) {
+    if (!code) return
+    setLoading(true)
+
+    try {
+      const session = await pb
+        .collection('game_sessions')
+        .getFirstListItem(`code="${code.toUpperCase()}" && status!="finished"`)
+      gameStore.setSession(session.id, session.code)
       navigate('/garage')
-    } else {
-      alert('Código inválido! Tente CORRIDA123')
+    } catch (err) {
+      toast({
+        title: 'Código Inválido',
+        description: 'Nenhuma corrida ativa encontrada com este código.',
+        variant: 'destructive',
+      })
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -43,14 +59,15 @@ const Index = () => {
           />
           <Button
             type="submit"
+            disabled={loading}
             className="w-full h-14 text-lg font-bold font-racing bg-primary hover:bg-primary/80 text-black shadow-[0_0_15px_rgba(0,242,255,0.4)] transition-all hover:scale-[1.02]"
           >
-            Ligar Motores!
+            {loading ? 'Procurando...' : 'Ligar Motores!'}
           </Button>
         </form>
 
         <div className="pt-6 border-t border-white/10 text-center">
-          <Link to="/dashboard">
+          <Link to="/login">
             <Button variant="link" className="text-muted-foreground hover:text-white">
               Acesso do Professor (Painel)
             </Button>
@@ -60,5 +77,4 @@ const Index = () => {
     </div>
   )
 }
-
 export default Index

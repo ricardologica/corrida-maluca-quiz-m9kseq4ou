@@ -5,9 +5,9 @@ export type Player = {
   carColor: string
   avatarUrl: string
   progress: number
-  isFinished: boolean
+  score: number
+  wrong_answers: number
   status: 'idle' | 'boost' | 'penalty'
-  speed: number
 }
 
 export type Question = {

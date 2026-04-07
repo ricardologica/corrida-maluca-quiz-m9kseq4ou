@@ -8,7 +8,8 @@ interface TrackLaneProps {
 
 export function TrackLane({ player, totalQuestions }: TrackLaneProps) {
   const percentage = Math.min((player.progress / totalQuestions) * 100, 100)
-  const formattedName = player.name ? player.name.split(' ')[0].toLowerCase() : 'piloto'
+  const formattedName =
+    player.name && player.name !== 'Unknown' ? player.name.split(' ')[0].toLowerCase() : 'piloto'
   const formattedGrade = player.grade ? player.grade.replace(/[^0-9]/g, '') + 'ano' : ''
   const displayLabel = formattedGrade ? `${formattedName}_${formattedGrade}` : formattedName
 
@@ -22,20 +23,20 @@ export function TrackLane({ player, totalQuestions }: TrackLaneProps) {
 
       {/* Moving Car Container */}
       <div
-        className="absolute bottom-2 z-10 transition-all duration-1000 ease-in-out"
+        className="absolute bottom-1 sm:bottom-2 z-10 transition-all duration-1000 ease-in-out"
         style={{ left: `calc(${percentage}% - ${percentage === 100 ? 100 : 50}px)` }}
       >
-        <div className="relative">
-          {/* Player Name Bubble */}
-          <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-black/80 px-2 py-1 rounded text-xs font-racing whitespace-nowrap border border-white/20 shadow-lg uppercase">
-            {displayLabel}
-          </div>
+        <div className="relative flex flex-col items-center">
           <CarIcon
             color={player.carColor}
             avatarUrl={player.avatarUrl}
             status={player.status}
             className="w-20 h-12 sm:w-28 sm:h-16"
           />
+          {/* Player Name Bubble */}
+          <div className="bg-black/80 px-2 py-0.5 mt-1 rounded text-[10px] sm:text-xs font-racing whitespace-nowrap border border-white/20 shadow-lg uppercase z-20">
+            {displayLabel}
+          </div>
         </div>
       </div>
     </div>

@@ -198,17 +198,20 @@ const Dashboard = () => {
     }
   }
 
-  const formattedPlayers = players.map((p) => ({
-    id: p.id,
-    name: p.expand?.user_id?.name || 'Unknown',
-    grade: p.expand?.user_id?.grade || '',
-    carColor: p.car_color || 'hsl(188, 100%, 50%)',
-    avatarUrl: p.avatar_url || '',
-    progress: p.position_x || 0,
-    score: p.score || 0,
-    wrong_answers: p.wrong_answers || 0,
-    status: (p.status || 'idle') as 'idle' | 'boost' | 'penalty',
-  }))
+  const formattedPlayers = players.map((p) => {
+    const user = p.expand?.user_id
+    return {
+      id: p.id,
+      name: user?.name || 'Unknown',
+      grade: user?.grade || '',
+      carColor: p.car_color || 'hsl(188, 100%, 50%)',
+      avatarUrl: user?.avatar ? pb.files.getURL(user, user.avatar) : p.avatar_url || '',
+      progress: p.position_x || 0,
+      score: p.score || 0,
+      wrong_answers: p.wrong_answers || 0,
+      status: (p.status || 'idle') as 'idle' | 'boost' | 'penalty',
+    }
+  })
 
   const sortedPlayers = [...formattedPlayers].sort((a, b) => b.progress - a.progress)
 

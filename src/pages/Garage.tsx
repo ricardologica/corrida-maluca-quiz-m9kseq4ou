@@ -14,6 +14,7 @@ import { CarIcon } from '@/components/CarIcon'
 import { Camera } from 'lucide-react'
 import pb from '@/lib/pocketbase/client'
 import { useToast } from '@/hooks/use-toast'
+import { useAuth } from '@/hooks/use-auth'
 
 const CAR_COLORS = [
   'hsl(188, 100%, 50%)', // Blue
@@ -27,9 +28,10 @@ const Garage = () => {
   const navigate = useNavigate()
   const { toast } = useToast()
   const { currentSessionId } = useGameStore()
+  const { user } = useAuth()
 
-  const [name, setName] = useState('')
-  const [grade, setGrade] = useState('')
+  const [name, setName] = useState(user?.name || '')
+  const [grade, setGrade] = useState(user?.grade || '')
   const [color, setColor] = useState(CAR_COLORS[0])
   const [loading, setLoading] = useState(false)
   const [avatarFile, setAvatarFile] = useState<File | null>(null)
@@ -42,7 +44,9 @@ const Garage = () => {
   }, [currentSessionId, navigate])
 
   const seed = name.length > 0 ? name.length : Math.floor(Math.random() * 10)
-  const avatarUrl = previewUrl || `https://img.usecurling.com/ppl/medium?gender=male&seed=${seed}`
+  const existingAvatar = user?.avatar ? pb.files.getURL(user, user.avatar) : null
+  const avatarUrl =
+    previewUrl || existingAvatar || `https://img.usecurling.com/ppl/medium?gender=male&seed=${seed}`
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -58,51 +62,69 @@ const Garage = () => {
     setLoading(true)
 
     try {
-      const safeName = name.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase()
-      const safeGrade = grade.replace(/[^a-zA-Z0-9]/g, '').toLowerCase()
-      const usernameGrade = `${safeName}_${safeGrade}`
-      const email = `${usernameGrade}_${Date.now()}@student.local`
-      const password = 'studentpassword123'
-
-      // Automatically register the student as a guest
-      const fd = new FormData()
-      fd.append('email', email)
-      fd.append('password', password)
-      fd.append('passwordConfirm', password)
-      fd.append('name', name)
-      fd.append('grade', grade)
-      fd.append('role', 'student')
-      if (avatarFile) fd.append('avatar', avatarFile)
-
-      const user = await pb.collection('users').create(fd)
-
+      let userId = user?.id
       let finalAvatarUrl = avatarUrl
-      if (user.avatar) {
-        finalAvatarUrl = pb.files.getURL(user, user.avatar)
+
+      if (!userId) {
+        const safeName = name.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase()
+        const safeGrade = grade.replace(/[^a-zA-Z0-9]/g, '').toLowerCase()
+        const usernameGrade = `${safeName}_${safeGrade}`
+        const email = `${usernameGrade}_${Date.now()}@student.local`
+        const password = 'studentpassword123'
+
+        const fd = new FormData()
+        fd.append('email', email)
+        fd.append('password', password)
+        fd.append('passwordConfirm', password)
+        fd.append('name', name)
+        fd.append('grade', grade)
+        fd.append('role', 'student')
+        if (avatarFile) fd.append('avatar', avatarFile)
+
+        const newUser = await pb.collection('users').create(fd)
+        userId = newUser.id
+        if (newUser.avatar) finalAvatarUrl = pb.files.getURL(newUser, newUser.avatar)
+
+        await pb.collection('users').authWithPassword(email, password)
+      } else {
+        const fd = new FormData()
+        fd.append('name', name)
+        fd.append('grade', grade)
+        if (avatarFile) fd.append('avatar', avatarFile)
+
+        const updatedUser = await pb.collection('users').update(userId, fd)
+        if (updatedUser.avatar) finalAvatarUrl = pb.files.getURL(updatedUser, updatedUser.avatar)
       }
 
-      // Auto login
-      await pb.collection('users').authWithPassword(email, password)
-
-      // Join the race session
-      const progress = await pb.collection('player_progress').create({
-        user_id: user.id,
-        session_id: currentSessionId,
-        score: 0,
-        wrong_answers: 0,
-        current_question_index: 0,
-        position_x: 0,
-        car_color: color,
-        avatar_url: finalAvatarUrl,
-        status: 'idle',
-      })
+      let progress
+      try {
+        progress = await pb
+          .collection('player_progress')
+          .getFirstListItem(`user_id="${userId}" && session_id="${currentSessionId}"`)
+        progress = await pb.collection('player_progress').update(progress.id, {
+          car_color: color,
+          avatar_url: finalAvatarUrl,
+        })
+      } catch {
+        progress = await pb.collection('player_progress').create({
+          user_id: userId,
+          session_id: currentSessionId,
+          score: 0,
+          wrong_answers: 0,
+          current_question_index: 0,
+          position_x: 0,
+          car_color: color,
+          avatar_url: finalAvatarUrl,
+          status: 'idle',
+        })
+      }
 
       gameStore.setProgress(progress.id)
       navigate('/quiz')
-    } catch (err) {
+    } catch (err: any) {
       toast({
         title: 'Erro na Garagem',
-        description: 'Não foi possível entrar na corrida. Tente novamente.',
+        description: err.message || 'Não foi possível entrar na corrida. Tente novamente.',
         variant: 'destructive',
       })
     } finally {

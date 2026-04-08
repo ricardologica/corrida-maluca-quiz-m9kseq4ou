@@ -104,9 +104,13 @@ const Login = () => {
             .toLowerCase()
             .replace(/[^a-z0-9]/g, '') || 'aluno'
         const randomString = Math.random().toString(36).substring(2, 8)
-        const guestEmail = `${sanitizedName}_${sessionCode.toLowerCase()}_${randomString}@corrida.internal`
+        const timestamp = Date.now().toString(36)
+
+        const guestUsername = `pilot_${randomString}${timestamp}`.substring(0, 50)
+        const guestEmail = `${guestUsername}@corrida.com`
         const guestPassword = 'Skip@Pass123'
 
+        formData.append('username', guestUsername)
         formData.append('email', guestEmail)
         formData.append('password', guestPassword)
         formData.append('passwordConfirm', guestPassword)

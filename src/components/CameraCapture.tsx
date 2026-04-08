@@ -22,9 +22,6 @@ export function CameraCapture({ onCapture }: { onCapture: (file: File | null) =>
         video: { facingMode: 'user' },
       })
       setStream(mediaStream)
-      if (videoRef.current) {
-        videoRef.current.srcObject = mediaStream
-      }
     } catch (err) {
       console.error('Error accessing camera', err)
       toast({
@@ -67,10 +64,25 @@ export function CameraCapture({ onCapture }: { onCapture: (file: File | null) =>
   }
 
   useEffect(() => {
+    if (stream && videoRef.current) {
+      videoRef.current.srcObject = stream
+    }
+  }, [stream])
+
+  useEffect(() => {
     return () => {
       stopCamera()
     }
   }, [stopCamera])
+
+  // Prevent memory leaks if component unmounts while previewing
+  useEffect(() => {
+    return () => {
+      if (preview) {
+        URL.revokeObjectURL(preview)
+      }
+    }
+  }, [preview])
 
   if (preview) {
     return (

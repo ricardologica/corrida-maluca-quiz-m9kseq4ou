@@ -125,86 +125,230 @@
     }
   }
 
-  @keyframes run-arm-l {
-    0%,
-    100% {
-      transform: rotate(-50deg);
-    }
-    50% {
-      transform: rotate(50deg);
-    }
-  }
-  @keyframes run-arm-r {
-    0%,
-    100% {
-      transform: rotate(50deg);
-    }
-    50% {
-      transform: rotate(-50deg);
-    }
-  }
-  @keyframes run-leg-l {
-    0%,
-    100% {
-      transform: rotate(40deg);
-    }
-    50% {
-      transform: rotate(-40deg) translateY(-2px);
-    }
-  }
-  @keyframes run-leg-r {
-    0%,
-    100% {
-      transform: rotate(-40deg) translateY(-2px);
-    }
-    50% {
-      transform: rotate(40deg);
-    }
-  }
-  @keyframes run-bounce {
-    0%,
-    100% {
-      transform: translateY(0);
-    }
-    50% {
-      transform: translateY(-3px);
-    }
-  }
-  @keyframes stumble {
+  @keyframes sprint-thigh-r {
     0% {
-      transform: rotate(0) translateY(0);
+      transform: rotate(-40deg);
+    }
+    25% {
+      transform: rotate(10deg);
     }
     50% {
-      transform: rotate(-20deg) translateY(5px);
+      transform: rotate(50deg);
+    }
+    75% {
+      transform: rotate(-10deg);
     }
     100% {
-      transform: rotate(-45deg) translateY(10px);
+      transform: rotate(-40deg);
+    }
+  }
+  @keyframes sprint-calf-r {
+    0% {
+      transform: rotate(10deg);
+    }
+    25% {
+      transform: rotate(20deg);
+    }
+    50% {
+      transform: rotate(80deg);
+    }
+    75% {
+      transform: rotate(110deg);
+    }
+    100% {
+      transform: rotate(10deg);
+    }
+  }
+  @keyframes sprint-thigh-l {
+    0% {
+      transform: rotate(50deg);
+    }
+    25% {
+      transform: rotate(-10deg);
+    }
+    50% {
+      transform: rotate(-40deg);
+    }
+    75% {
+      transform: rotate(10deg);
+    }
+    100% {
+      transform: rotate(50deg);
+    }
+  }
+  @keyframes sprint-calf-l {
+    0% {
+      transform: rotate(80deg);
+    }
+    25% {
+      transform: rotate(110deg);
+    }
+    50% {
+      transform: rotate(10deg);
+    }
+    75% {
+      transform: rotate(20deg);
+    }
+    100% {
+      transform: rotate(80deg);
+    }
+  }
+  @keyframes sprint-arm-r {
+    0%,
+    100% {
+      transform: rotate(50deg);
+    }
+    50% {
+      transform: rotate(-50deg);
+    }
+  }
+  @keyframes sprint-arm-l {
+    0%,
+    100% {
+      transform: rotate(-50deg);
+    }
+    50% {
+      transform: rotate(50deg);
+    }
+  }
+  @keyframes sprint-torso {
+    0%,
+    50%,
+    100% {
+      transform: translateY(0) rotate(12deg);
+    }
+    25%,
+    75% {
+      transform: translateY(-4px) rotate(12deg);
+    }
+  }
+  @keyframes sprint-head {
+    0%,
+    50%,
+    100% {
+      transform: translateY(0) rotate(-12deg);
+    }
+    25%,
+    75% {
+      transform: translateY(-1px) rotate(-12deg);
     }
   }
 
-  .animate-run-arm-l {
-    animation: run-arm-l 0.6s infinite ease-in-out;
+  @keyframes stumble-torso {
+    0%,
+    100% {
+      transform: translateY(4px) rotate(30deg);
+      filter: grayscale(0.8);
+    }
+    50% {
+      transform: translateY(8px) rotate(40deg);
+      filter: grayscale(0.8);
+    }
   }
-  .animate-run-arm-r {
-    animation: run-arm-r 0.6s infinite ease-in-out;
+  @keyframes stumble-head {
+    0%,
+    100% {
+      transform: rotate(-20deg);
+    }
+    50% {
+      transform: rotate(-10deg);
+    }
   }
-  .animate-run-leg-l {
-    animation: run-leg-l 0.6s infinite ease-in-out;
+  @keyframes stumble-thigh-r {
+    0%,
+    100% {
+      transform: rotate(-20deg);
+    }
+    50% {
+      transform: rotate(10deg);
+    }
   }
-  .animate-run-leg-r {
-    animation: run-leg-r 0.6s infinite ease-in-out;
+  @keyframes stumble-calf-r {
+    0%,
+    100% {
+      transform: rotate(10deg);
+    }
+    50% {
+      transform: rotate(40deg);
+    }
   }
-  .animate-run-bounce {
-    animation: run-bounce 0.3s infinite ease-in-out;
+  @keyframes stumble-thigh-l {
+    0%,
+    100% {
+      transform: rotate(20deg);
+    }
+    50% {
+      transform: rotate(-10deg);
+    }
   }
-  .animate-sprint {
-    animation: run-bounce 0.15s infinite ease-in-out;
+  @keyframes stumble-calf-l {
+    0%,
+    100% {
+      transform: rotate(30deg);
+    }
+    50% {
+      transform: rotate(10deg);
+    }
   }
-  .animate-stumble {
-    animation: stumble 0.5s forwards ease-out;
+  @keyframes stumble-arm {
+    0%,
+    100% {
+      transform: rotate(20deg);
+    }
+    50% {
+      transform: rotate(40deg);
+    }
   }
-  .animation-duration-fast {
-    animation-duration: 0.3s !important;
+
+  .animate-sprint-thigh-r {
+    animation: sprint-thigh-r 0.6s infinite linear;
+  }
+  .animate-sprint-calf-r {
+    animation: sprint-calf-r 0.6s infinite linear;
+  }
+  .animate-sprint-thigh-l {
+    animation: sprint-thigh-l 0.6s infinite linear;
+  }
+  .animate-sprint-calf-l {
+    animation: sprint-calf-l 0.6s infinite linear;
+  }
+  .animate-sprint-arm-r {
+    animation: sprint-arm-r 0.6s infinite ease-in-out;
+  }
+  .animate-sprint-arm-l {
+    animation: sprint-arm-l 0.6s infinite ease-in-out;
+  }
+  .animate-sprint-torso {
+    animation: sprint-torso 0.6s infinite ease-in-out;
+  }
+  .animate-sprint-head {
+    animation: sprint-head 0.6s infinite ease-in-out;
+  }
+
+  .animate-stumble-torso {
+    animation: stumble-torso 1.5s infinite ease-in-out;
+  }
+  .animate-stumble-head {
+    animation: stumble-head 1.5s infinite ease-in-out;
+  }
+  .animate-stumble-thigh-r {
+    animation: stumble-thigh-r 1.5s infinite ease-in-out;
+  }
+  .animate-stumble-calf-r {
+    animation: stumble-calf-r 1.5s infinite ease-in-out;
+  }
+  .animate-stumble-thigh-l {
+    animation: stumble-thigh-l 1.5s infinite ease-in-out;
+  }
+  .animate-stumble-calf-l {
+    animation: stumble-calf-l 1.5s infinite ease-in-out;
+  }
+  .animate-stumble-arm {
+    animation: stumble-arm 1.5s infinite ease-in-out;
+  }
+
+  .animation-fast {
+    animation-duration: 0.35s !important;
   }
 
   .animate-track {

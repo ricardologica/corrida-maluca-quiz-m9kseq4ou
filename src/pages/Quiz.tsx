@@ -3,8 +3,8 @@ import { useNavigate } from 'react-router-dom'
 import { useGameStore } from '@/stores/main'
 import pb from '@/lib/pocketbase/client'
 import { Button } from '@/components/ui/button'
-import { CarIcon } from '@/components/CarIcon'
 import { Progress } from '@/components/ui/progress'
+import { RaceViewport } from '@/components/RaceViewport'
 import type { RecordModel } from 'pocketbase'
 import { useRealtime } from '@/hooks/use-realtime'
 import { Loader2 } from 'lucide-react'
@@ -284,7 +284,9 @@ const Quiz = () => {
   const progressPercent = (progressData.position_x / TOTAL_QUESTIONS) * 100
 
   return (
-    <div className="flex-1 flex flex-col relative px-4 pb-8">
+    <div className="flex-1 flex flex-col relative pb-4">
+      <RaceViewport sessionId={currentSessionId} currentUserId={pb.authStore.record?.id || ''} />
+
       {sessionStatus === 'lobby' && (
         <div className="absolute inset-0 z-[100] flex flex-col items-center justify-center bg-black/90 backdrop-blur-sm px-4 text-center animate-fade-in">
           <div className="text-4xl md:text-6xl font-racing text-primary animate-pulse mb-6">
@@ -326,8 +328,8 @@ const Quiz = () => {
         <div className="absolute inset-0 bg-accent/20 animate-pulse pointer-events-none z-0" />
       )}
 
-      <div className="z-10 w-full max-w-2xl mx-auto mb-6 flex flex-col items-center">
-        <div className="w-full flex justify-between text-sm font-racing text-muted-foreground mb-2">
+      <div className="z-10 w-full max-w-2xl mx-auto mb-6 mt-6 flex flex-col items-center px-4">
+        <div className="w-full flex justify-between text-xs md:text-sm font-racing text-muted-foreground mb-2">
           <span>PROGRESSO</span>
           <span>
             {progressData.position_x} / {TOTAL_QUESTIONS}
@@ -339,22 +341,22 @@ const Quiz = () => {
         />
       </div>
 
-      <div className="z-10 w-full max-w-2xl mx-auto flex-1 flex flex-col">
+      <div className="z-10 w-full max-w-2xl mx-auto flex-1 flex flex-col px-4">
         <div
-          className={`glass-panel rounded-2xl p-6 md:p-10 text-center mb-6 transition-colors duration-300 ${feedback === 'correct' ? 'border-accent shadow-[0_0_30px_rgba(0,255,136,0.3)]' : feedback === 'wrong' ? 'border-destructive shadow-[0_0_30px_rgba(255,0,110,0.3)]' : ''}`}
+          className={`glass-panel rounded-2xl p-4 md:p-8 text-center mb-6 transition-colors duration-300 ${feedback === 'correct' ? 'border-accent shadow-[0_0_30px_rgba(0,255,136,0.3)]' : feedback === 'wrong' ? 'border-destructive shadow-[0_0_30px_rgba(255,0,110,0.3)]' : ''}`}
         >
-          <div className="text-xs font-racing text-primary mb-4 uppercase">{q.theme}</div>
-          <h2 className="text-xl md:text-2xl font-medium mb-2">{q.statement}</h2>
+          <div className="text-xs font-racing text-primary mb-2 uppercase">{q.theme}</div>
+          <h2 className="text-lg md:text-2xl font-medium mb-2 leading-snug">{q.statement}</h2>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
           {options.map((opt) => (
             <Button
               key={opt.id}
               onClick={() => handleAnswer(opt.id)}
               disabled={feedback !== null || penaltyTime > 0 || sessionStatus !== 'active'}
               variant="outline"
-              className={`h-20 text-lg md:text-xl font-medium whitespace-normal break-words bg-black/40 border-white/10 hover:bg-white/10 hover:border-white/30 transition-all ${
+              className={`min-h-[5rem] h-auto py-3 px-4 text-base md:text-lg font-medium whitespace-normal break-words leading-tight bg-black/40 border-white/10 hover:bg-white/10 hover:border-white/30 transition-all ${
                 feedback === 'wrong' && opt.id === q.correct_option
                   ? 'bg-accent/20 border-accent text-accent'
                   : ''
@@ -366,11 +368,11 @@ const Quiz = () => {
         </div>
 
         {penaltyTime > 0 && (
-          <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-black/80 backdrop-blur-sm animate-fade-in px-4 text-center">
+          <div className="fixed inset-0 z-[150] flex flex-col items-center justify-center bg-black/80 backdrop-blur-sm animate-fade-in px-4 text-center">
             <div className="text-5xl md:text-6xl font-racing text-destructive mb-4 animate-bounce">
-              PNEU FURADO!
+              TROPEÇOU!
             </div>
-            <div className="text-xl text-white mb-8">
+            <div className="text-xl text-white mb-6">
               Aguarde:{' '}
               <span className="text-4xl font-bold font-racing ml-2 text-destructive">
                 {penaltyTime}s
@@ -389,15 +391,6 @@ const Quiz = () => {
             </div>
           </div>
         )}
-      </div>
-
-      <div className="w-full h-32 relative mt-auto border-b-4 border-dashed border-white/20 animate-track overflow-hidden flex items-end justify-center pb-2">
-        <CarIcon
-          color={progressData.car_color}
-          avatarUrl={progressData.avatar_url}
-          status={progressData.status as any}
-          className="scale-150 transform transition-transform"
-        />
       </div>
     </div>
   )

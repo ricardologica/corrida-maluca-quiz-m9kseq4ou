@@ -1,5 +1,5 @@
 import { Player } from '@/types/game'
-import { CarIcon } from './CarIcon'
+import { RunnerIcon } from './RunnerIcon'
 
 interface TrackLaneProps {
   player: Player
@@ -27,11 +27,11 @@ export function TrackLane({ player, totalQuestions }: TrackLaneProps) {
         style={{ left: `calc(${percentage}% - ${percentage === 100 ? 100 : 50}px)` }}
       >
         <div className="relative flex flex-col items-center">
-          <CarIcon
+          <RunnerIcon
             color={player.carColor}
             avatarUrl={player.avatarUrl}
             status={player.status}
-            className="w-20 h-12 sm:w-28 sm:h-16"
+            className="w-12 h-16 sm:w-16 sm:h-20 mb-2"
           />
           {/* Player Name Bubble */}
           <div className="bg-black/80 px-2 py-0.5 mt-1 rounded text-[10px] sm:text-xs font-racing whitespace-nowrap border border-white/20 shadow-lg uppercase z-20">

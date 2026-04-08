@@ -125,6 +125,88 @@
     }
   }
 
+  @keyframes run-arm-l {
+    0%,
+    100% {
+      transform: rotate(-50deg);
+    }
+    50% {
+      transform: rotate(50deg);
+    }
+  }
+  @keyframes run-arm-r {
+    0%,
+    100% {
+      transform: rotate(50deg);
+    }
+    50% {
+      transform: rotate(-50deg);
+    }
+  }
+  @keyframes run-leg-l {
+    0%,
+    100% {
+      transform: rotate(40deg);
+    }
+    50% {
+      transform: rotate(-40deg) translateY(-2px);
+    }
+  }
+  @keyframes run-leg-r {
+    0%,
+    100% {
+      transform: rotate(-40deg) translateY(-2px);
+    }
+    50% {
+      transform: rotate(40deg);
+    }
+  }
+  @keyframes run-bounce {
+    0%,
+    100% {
+      transform: translateY(0);
+    }
+    50% {
+      transform: translateY(-3px);
+    }
+  }
+  @keyframes stumble {
+    0% {
+      transform: rotate(0) translateY(0);
+    }
+    50% {
+      transform: rotate(-20deg) translateY(5px);
+    }
+    100% {
+      transform: rotate(-45deg) translateY(10px);
+    }
+  }
+
+  .animate-run-arm-l {
+    animation: run-arm-l 0.6s infinite ease-in-out;
+  }
+  .animate-run-arm-r {
+    animation: run-arm-r 0.6s infinite ease-in-out;
+  }
+  .animate-run-leg-l {
+    animation: run-leg-l 0.6s infinite ease-in-out;
+  }
+  .animate-run-leg-r {
+    animation: run-leg-r 0.6s infinite ease-in-out;
+  }
+  .animate-run-bounce {
+    animation: run-bounce 0.3s infinite ease-in-out;
+  }
+  .animate-sprint {
+    animation: run-bounce 0.15s infinite ease-in-out;
+  }
+  .animate-stumble {
+    animation: stumble 0.5s forwards ease-out;
+  }
+  .animation-duration-fast {
+    animation-duration: 0.3s !important;
+  }
+
   .animate-track {
     animation: track-scroll 1s linear infinite;
   }

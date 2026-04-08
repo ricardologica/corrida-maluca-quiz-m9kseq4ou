@@ -7,12 +7,13 @@ import { CarIcon } from '@/components/CarIcon'
 import { Progress } from '@/components/ui/progress'
 import type { RecordModel } from 'pocketbase'
 import { useRealtime } from '@/hooks/use-realtime'
+import { Loader2 } from 'lucide-react'
 
 const TOTAL_QUESTIONS = 30
 
 const Quiz = () => {
   const navigate = useNavigate()
-  const { currentSessionId, currentProgressId } = useGameStore()
+  const { currentSessionId, currentProgressId, setSession } = useGameStore()
 
   const [questions, setQuestions] = useState<RecordModel[]>([])
   const [currentIdx, setCurrentIdx] = useState(0)
@@ -21,49 +22,112 @@ const Quiz = () => {
   const [progressData, setProgressData] = useState<RecordModel | null>(null)
   const [sessionStatus, setSessionStatus] = useState('active')
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [timeoutReached, setTimeoutReached] = useState(false)
+  const [reloadKey, setReloadKey] = useState(0)
 
   useEffect(() => {
-    if (!currentSessionId || !currentProgressId) {
+    if (!currentSessionId) {
       navigate('/')
       return
     }
 
-    const loadGame = async () => {
+    let isMounted = true
+    let timeoutId: NodeJS.Timeout
+
+    const init = async () => {
       try {
+        setLoading(true)
+        setError(null)
+        setTimeoutReached(false)
+
+        timeoutId = setTimeout(() => {
+          if (isMounted) setTimeoutReached(true)
+        }, 10000)
+
         const sData = await pb.collection('game_sessions').getOne(currentSessionId)
-        const gradeFilter = sData.grade ? `suggested_grade="${sData.grade}"` : ''
 
-        const [qData, pData] = await Promise.all([
-          pb.collection('questions').getFullList({
-            filter: gradeFilter,
-            sort: '@random',
-            requestKey: null,
-          }),
-          pb.collection('player_progress').getOne(currentProgressId),
-        ])
+        const qData = await pb.collection('questions').getFullList({
+          filter: sData.grade ? `suggested_grade="${sData.grade}"` : '',
+          sort: '@random',
+          requestKey: null,
+        })
 
-        // Ensure exactly 30 questions
-        let finalQs = qData
-        if (finalQs.length === 0) {
-          finalQs = await pb
-            .collection('questions')
-            .getFullList({ sort: '@random', requestKey: null })
+        if (!isMounted) return
+
+        if (qData.length === 0) {
+          setError('Nenhuma pergunta disponível para esta série. Por favor, contate seu professor.')
+          return
         }
+
+        let finalQs = [...qData]
         while (finalQs.length > 0 && finalQs.length < TOTAL_QUESTIONS) {
           finalQs = [...finalQs, ...qData]
         }
         setQuestions(finalQs.slice(0, TOTAL_QUESTIONS))
+
+        let pData: RecordModel | null = null
+        const userId = pb.authStore.record?.id
+
+        try {
+          if (currentProgressId) {
+            pData = await pb.collection('player_progress').getOne(currentProgressId)
+          } else {
+            throw new Error('No progress ID')
+          }
+        } catch (e) {
+          if (userId) {
+            try {
+              pData = await pb
+                .collection('player_progress')
+                .getFirstListItem(`session_id="${currentSessionId}" && user_id="${userId}"`)
+              setSession(currentSessionId, pData.id)
+            } catch (err) {
+              pData = await pb.collection('player_progress').create({
+                user_id: userId,
+                session_id: currentSessionId,
+                score: 0,
+                wrong_answers: 0,
+                current_question_index: 0,
+                position_x: 0,
+                status: 'idle',
+                car_color: '#ff0000',
+                avatar_url: pb.authStore.record?.avatar || '',
+              })
+              setSession(currentSessionId, pData.id)
+            }
+          }
+        }
+
+        if (!isMounted) return
+
+        if (!pData) {
+          setError('Não foi possível carregar o progresso do jogador.')
+          return
+        }
+
         setProgressData(pData)
         setCurrentIdx(pData.current_question_index || 0)
         setSessionStatus(sData.status)
       } catch (e) {
-        navigate('/')
+        if (!isMounted) return
+        console.error(e)
+        setError('Erro ao carregar os dados da pista. Tente novamente.')
       } finally {
-        setLoading(false)
+        if (isMounted) {
+          setLoading(false)
+          clearTimeout(timeoutId)
+        }
       }
     }
-    loadGame()
-  }, [currentSessionId, currentProgressId, navigate])
+
+    init()
+
+    return () => {
+      isMounted = false
+      clearTimeout(timeoutId)
+    }
+  }, [currentSessionId, navigate, setSession, reloadKey])
 
   useRealtime('game_sessions', (e) => {
     if (e.record.id === currentSessionId) {
@@ -95,7 +159,7 @@ const Quiz = () => {
     const newPos = isCorrect ? progressData.position_x + 1 : progressData.position_x
 
     try {
-      await pb.collection('player_progress').update(currentProgressId!, {
+      await pb.collection('player_progress').update(progressData.id, {
         score: newScore,
         wrong_answers: newWrong,
         position_x: newPos,
@@ -122,7 +186,7 @@ const Quiz = () => {
         try {
           await pb
             .collection('player_progress')
-            .update(currentProgressId!, { status: 'idle', current_question_index: currentIdx + 1 })
+            .update(progressData.id, { status: 'idle', current_question_index: currentIdx + 1 })
           setProgressData((prev) =>
             prev ? { ...prev, status: 'idle', current_question_index: currentIdx + 1 } : null,
           )
@@ -148,19 +212,21 @@ const Quiz = () => {
         setPenaltyTime((prev) => {
           if (prev <= 1) {
             setFeedback(null)
-            pb.collection('player_progress')
-              .update(currentProgressId!, {
-                status: 'idle',
-                current_question_index: currentIdx + 1,
-              })
-              .then(() => {
-                setProgressData((d) =>
-                  d ? { ...d, status: 'idle', current_question_index: currentIdx + 1 } : null,
-                )
-              })
-              .catch((e) => {
-                console.error(e)
-              })
+            if (progressData) {
+              pb.collection('player_progress')
+                .update(progressData.id, {
+                  status: 'idle',
+                  current_question_index: currentIdx + 1,
+                })
+                .then(() => {
+                  setProgressData((d) =>
+                    d ? { ...d, status: 'idle', current_question_index: currentIdx + 1 } : null,
+                  )
+                })
+                .catch((e) => {
+                  console.error(e)
+                })
+            }
 
             if (currentIdx + 1 >= TOTAL_QUESTIONS) {
               navigate('/')
@@ -174,15 +240,62 @@ const Quiz = () => {
       }, 1000)
     }
     return () => clearInterval(timer)
-  }, [penaltyTime, currentIdx, currentProgressId, navigate])
+  }, [penaltyTime, currentIdx, progressData, navigate])
 
-  if (loading || !q || !progressData)
-    return <div className="p-8 text-center font-racing">Carregando Pista...</div>
+  if (loading) {
+    if (timeoutReached) {
+      return (
+        <div className="flex-1 flex flex-col items-center justify-center p-8 text-center animate-fade-in relative z-50">
+          <div className="text-2xl font-racing text-destructive mb-4">
+            Demorando mais que o esperado...
+          </div>
+          <Button onClick={() => setReloadKey((k) => k + 1)} className="font-racing">
+            Recarregar
+          </Button>
+        </div>
+      )
+    }
+    return (
+      <div className="flex-1 flex flex-col items-center justify-center p-8 text-center relative z-50">
+        <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
+        <div className="text-2xl font-racing text-primary">Carregando Pista...</div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="flex-1 flex flex-col items-center justify-center p-8 text-center animate-fade-in relative z-50">
+        <div className="text-2xl font-racing text-destructive mb-6 max-w-md">{error}</div>
+        <div className="flex gap-4">
+          <Button onClick={() => navigate('/')} variant="outline" className="font-racing">
+            Voltar
+          </Button>
+          <Button onClick={() => setReloadKey((k) => k + 1)} className="font-racing">
+            Tentar Novamente
+          </Button>
+        </div>
+      </div>
+    )
+  }
+
+  if (!q || !progressData) return null
 
   const progressPercent = (progressData.position_x / TOTAL_QUESTIONS) * 100
 
   return (
     <div className="flex-1 flex flex-col relative px-4 pb-8">
+      {sessionStatus === 'lobby' && (
+        <div className="absolute inset-0 z-[100] flex flex-col items-center justify-center bg-black/90 backdrop-blur-sm px-4 text-center animate-fade-in">
+          <div className="text-4xl md:text-6xl font-racing text-primary animate-pulse mb-6">
+            AQUECENDO OS MOTORES...
+          </div>
+          <div className="text-xl text-white max-w-md">
+            Aguardando o professor iniciar a corrida. Prepare-se!
+          </div>
+        </div>
+      )}
+
       {sessionStatus === 'paused' && (
         <div className="absolute inset-0 z-[100] flex flex-col items-center justify-center bg-black/80 backdrop-blur-sm px-4 text-center animate-fade-in">
           <div className="text-4xl md:text-6xl font-racing text-warning animate-pulse mb-6">

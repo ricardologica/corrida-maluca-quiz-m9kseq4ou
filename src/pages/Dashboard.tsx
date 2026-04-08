@@ -17,6 +17,7 @@ import {
   Copy,
   FileEdit,
   Users,
+  Gift,
 } from 'lucide-react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import {
@@ -75,6 +76,17 @@ const Dashboard = () => {
   const [studentsModalOpen, setStudentsModalOpen] = useState(false)
   const [studentToDelete, setStudentToDelete] = useState<RecordModel | null>(null)
 
+  // Prizes Management State
+  const [prizesModalOpen, setPrizesModalOpen] = useState(false)
+  const [prizes, setPrizes] = useState<RecordModel[]>([])
+  const [newPrize, setNewPrize] = useState({
+    name: '',
+    global_threshold: 0,
+    min_correct: 0,
+    image_url: '',
+    search: '',
+  })
+
   useEffect(() => {
     if (!user || user.role !== 'teacher') {
       navigate('/login')
@@ -87,8 +99,10 @@ const Dashboard = () => {
   useEffect(() => {
     if (currentSession) {
       loadPlayers(currentSession.id)
+      loadPrizes(currentSession.id)
     } else {
       setPlayers([])
+      setPrizes([])
     }
   }, [currentSession?.id])
 
@@ -148,11 +162,34 @@ const Dashboard = () => {
     }
   }
 
+  const loadPrizes = async (sessionId: string) => {
+    try {
+      const records = await pb.collection('session_prizes').getFullList({
+        filter: `session_id="${sessionId}"`,
+        expand: 'winner_id',
+        sort: 'created',
+      })
+      setPrizes(records)
+    } catch (e) {
+      console.error(e)
+    }
+  }
+
   useRealtime(
     'player_progress',
     (e) => {
       if (currentSession && e.record.session_id === currentSession.id) {
         loadPlayers(currentSession.id)
+      }
+    },
+    !!currentSession,
+  )
+
+  useRealtime(
+    'session_prizes',
+    (e) => {
+      if (currentSession && e.record.session_id === currentSession.id) {
+        loadPrizes(currentSession.id)
       }
     },
     !!currentSession,
@@ -180,7 +217,6 @@ const Dashboard = () => {
   useRealtime(
     'users',
     (e) => {
-      // Update session players
       setPlayers((prev) =>
         prev.map((p) => {
           if (p.user_id === e.record.id) {
@@ -189,7 +225,6 @@ const Dashboard = () => {
           return p
         }),
       )
-      // Update global students list
       if (e.action === 'create' && e.record.role === 'student') {
         setStudents((prev) => [e.record, ...prev])
       } else if (e.action === 'update') {
@@ -311,9 +346,9 @@ Regras:
       }
 
       await pb.collection('users').delete(studentToDelete.id)
-      toast({ title: 'Student removed successfully' })
+      toast({ title: 'Aluno removido com sucesso' })
     } catch (e: any) {
-      toast({ title: 'Failed to delete student. Please try again.', variant: 'destructive' })
+      toast({ title: 'Falha ao deletar.', variant: 'destructive' })
     } finally {
       setStudentToDelete(null)
     }
@@ -355,10 +390,16 @@ Regras:
           status: 'idle',
         }),
       )
+      // reset prizes
+      for (const p of prizes) {
+        if (p.claimed) {
+          await pb.collection('session_prizes').update(p.id, { claimed: false, winner_id: null })
+        }
+      }
       await Promise.all(promises)
-      toast({ title: 'Sessão reiniciada!', description: 'Todos os alunos voltaram ao início.' })
+      toast({ title: 'Sessão reiniciada!', description: 'Todos voltaram ao início.' })
     } catch (e: any) {
-      toast({ title: 'Erro ao reiniciar', description: e.message, variant: 'destructive' })
+      toast({ title: 'Erro', description: e.message, variant: 'destructive' })
     }
   }
 
@@ -369,12 +410,35 @@ Regras:
       if (deleteAccountToo) {
         await pb.collection('users').delete(playerToDelete.user_id)
       }
-      toast({ title: 'Aluno removido com sucesso!' })
+      toast({ title: 'Aluno removido!' })
     } catch (e: any) {
-      toast({ title: 'Erro ao remover aluno', description: e.message, variant: 'destructive' })
+      toast({ title: 'Erro', description: e.message, variant: 'destructive' })
     } finally {
       setPlayerToDelete(null)
       setDeleteAccountToo(false)
+    }
+  }
+
+  const handleAddPrize = async () => {
+    if (!newPrize.name || !newPrize.global_threshold || !currentSession) return
+    try {
+      const img =
+        newPrize.image_url ||
+        (newPrize.search
+          ? `https://img.usecurling.com/p/200/200?q=${encodeURIComponent(newPrize.search)}&color=gradient`
+          : '')
+      await pb.collection('session_prizes').create({
+        session_id: currentSession.id,
+        name: newPrize.name,
+        global_threshold: newPrize.global_threshold,
+        min_correct: newPrize.min_correct,
+        image_url: img,
+        claimed: false,
+      })
+      setNewPrize({ name: '', global_threshold: 0, min_correct: 0, image_url: '', search: '' })
+      toast({ title: 'Prêmio adicionado com sucesso!' })
+    } catch (e: any) {
+      toast({ title: 'Erro ao adicionar prêmio', description: e.message, variant: 'destructive' })
     }
   }
 
@@ -383,7 +447,7 @@ Regras:
     return {
       id: p.id,
       user_id: p.user_id,
-      name: u?.nickname || u?.name || 'Unknown',
+      name: u?.nickname || u?.name || 'Piloto',
       grade: u?.grade || '',
       carColor: p.car_color || 'hsl(188, 100%, 50%)',
       avatarUrl: u?.avatar ? pb.files.getURL(u, u.avatar) : p.avatar_url || '',
@@ -401,15 +465,15 @@ Regras:
   return (
     <>
       <div className="w-full max-w-5xl mx-auto px-4 mt-4">
-        <div className="flex gap-2 p-1 bg-black/40 rounded-xl overflow-x-auto">
+        <div className="flex gap-2 p-1 bg-black/20 rounded-xl overflow-x-auto">
           {['6º Ano', '7º Ano', '8º Ano', '9º Ano'].map((g) => (
             <button
               key={g}
               onClick={() => setActiveTab(g)}
               className={`flex-1 py-3 px-6 rounded-lg font-racing text-lg transition-all whitespace-nowrap ${
                 activeTab === g
-                  ? 'bg-primary text-black shadow-[0_0_15px_rgba(0,255,204,0.3)]'
-                  : 'text-muted-foreground hover:bg-white/5 hover:text-white'
+                  ? 'bg-primary text-black shadow-[0_0_15px_rgba(255,215,0,0.4)]'
+                  : 'text-muted-foreground hover:bg-white/10 hover:text-white'
               }`}
             >
               {g}
@@ -461,7 +525,7 @@ Regras:
       ) : (
         <div className="flex-1 flex flex-col md:flex-row gap-4 p-4 overflow-hidden h-full">
           <div className="flex-1 glass-panel rounded-2xl flex flex-col overflow-hidden">
-            <div className="p-4 border-b border-white/10 flex justify-between items-center bg-black/40 flex-wrap gap-4">
+            <div className="p-4 border-b border-white/10 flex justify-between items-center bg-black/20 flex-wrap gap-4">
               <h2 className="font-racing text-xl md:text-2xl flex items-center gap-2">
                 <span
                   className={`animate-pulse ${currentSession.status === 'active' ? 'text-green-500' : currentSession.status === 'paused' ? 'text-yellow-500' : 'text-blue-500'}`}
@@ -508,13 +572,22 @@ Regras:
                 </Button>
 
                 <Button
+                  onClick={() => setPrizesModalOpen(true)}
+                  variant="outline"
+                  size="sm"
+                  className="bg-pink-500/20 text-pink-400 hover:bg-pink-500/30 border-pink-500/50"
+                >
+                  <Gift className="w-4 h-4 mr-2" /> Prêmios
+                </Button>
+
+                <Button
                   onClick={() => {
                     setStudentsModalOpen(true)
                     loadStudents()
                   }}
                   variant="outline"
                   size="sm"
-                  className="bg-cyan-500/20 text-cyan-400 hover:bg-cyan-500/30 border-cyan-500/50"
+                  className="bg-cyan-500/20 text-cyan-400 hover:bg-cyan-500/30 border-cyan-500/50 hidden md:flex"
                 >
                   <Users className="w-4 h-4 mr-2" /> Alunos
                 </Button>
@@ -523,44 +596,36 @@ Regras:
                   onClick={() => setManageModalOpen(true)}
                   variant="outline"
                   size="sm"
-                  className="bg-orange-500/20 text-orange-400 hover:bg-orange-500/30 border-orange-500/50"
+                  className="bg-orange-500/20 text-orange-400 hover:bg-orange-500/30 border-orange-500/50 hidden lg:flex"
                 >
-                  <FileEdit className="w-4 h-4 mr-2" /> Gerenciar
-                </Button>
-
-                <Button
-                  onClick={() => setImportModalOpen(true)}
-                  variant="outline"
-                  size="sm"
-                  className="bg-purple-500/20 text-purple-400 hover:bg-purple-500/30 border-purple-500/50"
-                >
-                  <Upload className="w-4 h-4 mr-2" /> Importar
+                  <FileEdit className="w-4 h-4 mr-2" /> Questões
                 </Button>
               </div>
               <div className="font-racing text-sm text-muted-foreground">
-                CÓDIGO ({currentSession.grade}):{' '}
-                <span className="text-white text-2xl tracking-widest bg-black/50 px-3 py-1 rounded border border-white/20 ml-2">
+                CÓDIGO:{' '}
+                <span className="text-white text-2xl tracking-widest bg-black/40 px-3 py-1 rounded border border-white/20 ml-2">
                   {currentSession.code}
                 </span>
               </div>
             </div>
 
-            <div className="flex-1 overflow-y-auto overflow-x-hidden relative scrollbar-hide py-4">
-              {formattedPlayers.map((player) => (
-                <TrackLane key={player.id} player={player} totalQuestions={TOTAL_QUESTIONS} />
-              ))}
-              {formattedPlayers.length === 0 && (
-                <div className="h-full flex flex-col items-center justify-center text-muted-foreground font-racing p-4 text-center space-y-4">
-                  <div className="text-5xl animate-bounce">🏎️</div>
-                  <div className="text-xl">Peça aos alunos para entrarem com o código:</div>
-                  <div className="text-5xl text-primary tracking-widest">{currentSession.code}</div>
-                </div>
-              )}
+            <div className="flex-1 overflow-y-auto overflow-x-hidden relative scrollbar-hide py-4 bg-black/10">
+              <div className="transform scale-[0.70] origin-top-left w-[142.8%]">
+                {formattedPlayers.map((player) => (
+                  <TrackLane key={player.id} player={player} totalQuestions={TOTAL_QUESTIONS} />
+                ))}
+                {formattedPlayers.length === 0 && (
+                  <div className="flex flex-col items-center justify-center text-muted-foreground font-racing p-10 text-center space-y-4">
+                    <div className="text-5xl animate-bounce">🏎️</div>
+                    <div className="text-xl">Aguardando pilotos entrarem com o código...</div>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 
           <div className="w-full md:w-80 glass-panel rounded-2xl flex flex-col overflow-hidden">
-            <div className="p-4 border-b border-white/10 bg-black/40 text-center">
+            <div className="p-4 border-b border-white/10 bg-black/20 text-center">
               <h2 className="font-racing text-lg text-warning tracking-widest">🏆 CLASSIFICAÇÃO</h2>
             </div>
 
@@ -568,7 +633,7 @@ Regras:
               {sortedPlayers.map((player, idx) => (
                 <div
                   key={player.id}
-                  className={`flex items-center gap-3 p-3 rounded-xl border transition-all ${idx === 0 && player.progress > 0 ? 'bg-warning/10 border-warning shadow-[0_0_10px_rgba(254,228,64,0.2)]' : 'bg-black/30 border-white/5'}`}
+                  className={`flex items-center gap-3 p-3 rounded-xl border transition-all ${idx === 0 && player.progress > 0 ? 'bg-warning/20 border-warning shadow-[0_0_10px_rgba(255,165,0,0.4)]' : 'bg-black/30 border-white/10'}`}
                 >
                   <div className="font-racing text-xl font-bold text-muted-foreground w-6 text-center">
                     {idx + 1}
@@ -579,8 +644,9 @@ Regras:
                     className="w-10 h-10 rounded-full border-2 border-white/20 object-cover"
                   />
                   <div className="flex-1 min-w-0">
-                    <div className="font-bold truncate text-sm">{player.name}</div>
-                    <div className="text-xs text-muted-foreground">{player.grade}</div>
+                    <div className="font-bold truncate text-sm font-racing tracking-wide">
+                      {player.name}
+                    </div>
                     <div className="flex gap-2 text-[10px] mt-1 font-bold">
                       <span className="text-accent">{player.score} ACERTOS</span>
                       <span className="text-destructive">{player.wrong_answers} ERROS</span>
@@ -593,7 +659,7 @@ Regras:
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="h-8 w-8 text-red-500 hover:text-red-400 hover:bg-red-500/10"
+                      className="h-8 w-8 text-red-500 hover:text-red-400 hover:bg-red-500/20"
                       onClick={() => setPlayerToDelete(player)}
                       title="Remover Aluno"
                     >
@@ -602,17 +668,147 @@ Regras:
                   </div>
                 </div>
               ))}
-              {sortedPlayers.length === 0 && (
-                <div className="text-center text-sm text-muted-foreground mt-10">
-                  Nenhum piloto na pista.
-                </div>
-              )}
             </div>
           </div>
         </div>
       )}
 
-      {/* -- Dialogs -- */}
+      {/* Prizes Modal */}
+      <Dialog open={prizesModalOpen} onOpenChange={setPrizesModalOpen}>
+        <DialogContent className="glass-panel border-white/10 text-white sm:max-w-3xl">
+          <DialogHeader>
+            <DialogTitle className="font-racing text-xl text-primary flex items-center gap-2">
+              <Gift className="w-5 h-5" /> Configurar Prêmios (Metas Dinâmicas)
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="bg-black/30 p-4 rounded-xl border border-white/10 grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="md:col-span-2">
+                <Label>Nome do Prêmio</Label>
+                <Input
+                  className="bg-black/50 border-white/20"
+                  value={newPrize.name}
+                  onChange={(e) => setNewPrize({ ...newPrize, name: e.target.value })}
+                  placeholder="Ex: Caixa de Bis"
+                />
+              </div>
+              <div>
+                <Label>Meta Global (Soma de todos os passos)</Label>
+                <Input
+                  type="number"
+                  className="bg-black/50 border-white/20"
+                  value={newPrize.global_threshold}
+                  onChange={(e) =>
+                    setNewPrize({ ...newPrize, global_threshold: parseInt(e.target.value) || 0 })
+                  }
+                />
+              </div>
+              <div>
+                <Label>Acertos Individuais Mínimos (Para ganhar)</Label>
+                <Input
+                  type="number"
+                  className="bg-black/50 border-white/20"
+                  value={newPrize.min_correct}
+                  onChange={(e) =>
+                    setNewPrize({ ...newPrize, min_correct: parseInt(e.target.value) || 0 })
+                  }
+                />
+              </div>
+              <div className="md:col-span-2">
+                <Label>Imagem do Prêmio (Busca de Fotos)</Label>
+                <div className="flex gap-2">
+                  <Input
+                    className="bg-black/50 border-white/20"
+                    value={newPrize.search}
+                    onChange={(e) => setNewPrize({ ...newPrize, search: e.target.value })}
+                    placeholder="Ex: chocolate"
+                  />
+                  <Button
+                    variant="outline"
+                    className="text-black bg-white"
+                    onClick={() =>
+                      setNewPrize({
+                        ...newPrize,
+                        image_url: `https://img.usecurling.com/p/200/200?q=${encodeURIComponent(newPrize.search)}&color=gradient`,
+                      })
+                    }
+                  >
+                    Buscar
+                  </Button>
+                </div>
+              </div>
+              {newPrize.image_url && (
+                <div className="md:col-span-2 flex justify-center p-2 bg-white/5 rounded-lg">
+                  <img
+                    src={newPrize.image_url}
+                    alt="Preview"
+                    className="h-24 w-24 object-contain rounded-lg shadow-lg"
+                  />
+                </div>
+              )}
+              <Button
+                onClick={handleAddPrize}
+                className="md:col-span-2 bg-primary text-black font-bold h-12 text-lg hover:bg-primary/80"
+              >
+                Adicionar Prêmio à Corrida
+              </Button>
+            </div>
+
+            <div className="max-h-64 overflow-y-auto mt-4 rounded-xl border border-white/10">
+              <Table>
+                <TableHeader className="bg-black/50 sticky top-0">
+                  <TableRow className="border-b border-white/10 hover:bg-transparent">
+                    <TableHead className="font-racing text-primary">Prêmio</TableHead>
+                    <TableHead className="font-racing text-primary">Meta</TableHead>
+                    <TableHead className="font-racing text-primary">Status</TableHead>
+                    <TableHead></TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {prizes.map((p) => (
+                    <TableRow key={p.id} className="border-b border-white/10 hover:bg-white/5">
+                      <TableCell className="font-bold flex items-center gap-2">
+                        {p.image_url && <img src={p.image_url} className="w-8 h-8 rounded-md" />}
+                        {p.name}
+                      </TableCell>
+                      <TableCell className="text-xs">
+                        Global: {p.global_threshold} | Ind: {p.min_correct}
+                      </TableCell>
+                      <TableCell>
+                        {p.claimed ? (
+                          <span className="text-green-400 font-bold text-xs bg-green-500/20 px-2 py-1 rounded">
+                            Resgatado:{' '}
+                            {p.expand?.winner_id?.name || p.expand?.winner_id?.nickname || 'Aluno'}
+                          </span>
+                        ) : (
+                          <span className="text-yellow-400 font-bold text-xs">Na Pista</span>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => pb.collection('session_prizes').delete(p.id)}
+                          className="text-red-400 hover:text-red-300 hover:bg-red-500/20"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                  {prizes.length === 0 && (
+                    <TableRow>
+                      <TableCell colSpan={4} className="text-center py-6 text-muted-foreground">
+                        Nenhum prêmio configurado.
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Manage Students Dialog */}
       <Dialog open={studentsModalOpen} onOpenChange={setStudentsModalOpen}>
@@ -624,31 +820,22 @@ Regras:
           </DialogHeader>
           <div className="overflow-y-auto max-h-[60vh] py-4 pr-2">
             {loadingStudents ? (
-              <div className="text-center py-8 text-muted-foreground">Carregando alunos...</div>
-            ) : students.length === 0 ? (
-              <div className="text-center py-8 text-muted-foreground">
-                Nenhum aluno encontrado no sistema.
-              </div>
+              <div className="text-center py-8 text-muted-foreground">Carregando...</div>
             ) : (
               <Table>
                 <TableHeader>
                   <TableRow className="border-white/10 hover:bg-transparent">
                     <TableHead className="text-primary font-racing">Nome</TableHead>
                     <TableHead className="text-primary font-racing">Apelido</TableHead>
-                    <TableHead className="text-primary font-racing">Celular</TableHead>
                     <TableHead className="text-primary font-racing">Série/Ano</TableHead>
                     <TableHead className="text-right text-primary font-racing">Ações</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {students.map((student) => (
-                    <TableRow
-                      key={student.id}
-                      className="border-white/10 hover:bg-white/5 transition-colors"
-                    >
+                    <TableRow key={student.id} className="border-white/10 hover:bg-white/5">
                       <TableCell className="font-medium">{student.name || 'Sem Nome'}</TableCell>
                       <TableCell>{student.nickname || '-'}</TableCell>
-                      <TableCell>{student.phone || '-'}</TableCell>
                       <TableCell>{student.grade || '-'}</TableCell>
                       <TableCell className="text-right">
                         <Button
@@ -657,8 +844,7 @@ Regras:
                           className="text-red-400 hover:text-red-300 hover:bg-red-500/20"
                           onClick={() => setStudentToDelete(student)}
                         >
-                          <Trash2 className="w-4 h-4 mr-2" />
-                          Excluir
+                          <Trash2 className="w-4 h-4" />
                         </Button>
                       </TableCell>
                     </TableRow>
@@ -681,7 +867,7 @@ Regras:
               Remover Aluno
             </AlertDialogTitle>
             <AlertDialogDescription className="text-muted-foreground">
-              Are you sure you want to delete this student? This action cannot be undone.
+              Isso apagará permanentemente o aluno e seu progresso.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -698,20 +884,57 @@ Regras:
         </AlertDialogContent>
       </AlertDialog>
 
+      {/* Remove Player from Session Dialog */}
+      <AlertDialog
+        open={!!playerToDelete}
+        onOpenChange={(open) => !open && setPlayerToDelete(null)}
+      >
+        <AlertDialogContent className="glass-panel border-white/10 text-white">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="font-racing text-xl text-primary">
+              Remover Aluno da Corrida
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-muted-foreground">
+              Deseja remover <strong>{playerToDelete?.name}</strong> desta corrida?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="flex items-center space-x-2 py-4">
+            <Checkbox
+              id="delete-account"
+              checked={deleteAccountToo}
+              onCheckedChange={(c) => setDeleteAccountToo(!!c)}
+              className="border-white/50"
+            />
+            <Label htmlFor="delete-account" className="text-sm cursor-pointer">
+              Também excluir conta permanentemente
+            </Label>
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="bg-transparent border-white/20 hover:bg-white/10 text-white">
+              Cancelar
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeletePlayer}
+              className="bg-destructive hover:bg-destructive/80 text-white"
+            >
+              Remover
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       {/* Manage Questions Dialog */}
       <Dialog open={manageModalOpen} onOpenChange={setManageModalOpen}>
         <DialogContent className="glass-panel border-white/10 text-white sm:max-w-4xl max-h-[90vh] flex flex-col">
           <DialogHeader>
-            <DialogTitle className="font-racing text-xl text-primary flex items-center justify-between">
-              <span>Gerenciar Questões ({questions.length})</span>
+            <DialogTitle className="font-racing text-xl text-primary">
+              Gerenciar Questões ({questions.length})
             </DialogTitle>
           </DialogHeader>
-
           <div className="flex gap-2 items-end shrink-0 mt-2">
             <div className="flex-1">
               <Label>Excluir Questão por ID</Label>
               <Input
-                placeholder="Ex: 15"
                 type="number"
                 className="bg-black/50 border-white/20 mt-1"
                 value={questionIdToDelete}
@@ -726,59 +949,30 @@ Regras:
               Excluir
             </Button>
           </div>
-
           <div className="flex-1 overflow-auto mt-4 border border-white/10 rounded-md">
-            {loadingQuestions ? (
-              <div className="p-8 text-center text-muted-foreground font-racing">
-                Carregando questões...
-              </div>
-            ) : questions.length === 0 ? (
-              <div className="p-8 text-center text-muted-foreground font-racing">
-                Nenhuma questão encontrada.
-              </div>
-            ) : (
-              <Table>
-                <TableHeader className="sticky top-0 bg-black/80 backdrop-blur z-10 border-b border-white/10">
-                  <TableRow className="border-white/10 hover:bg-transparent">
-                    <TableHead className="w-16 font-racing text-primary">ID</TableHead>
-                    <TableHead className="w-32 font-racing text-primary">Série</TableHead>
-                    <TableHead className="w-32 font-racing text-primary">Tema</TableHead>
-                    <TableHead className="font-racing text-primary">Pergunta</TableHead>
-                    <TableHead className="w-24 font-racing text-primary">Nível</TableHead>
+            <Table>
+              <TableHeader className="sticky top-0 bg-black/80 backdrop-blur z-10 border-b border-white/10">
+                <TableRow className="border-white/10 hover:bg-transparent">
+                  <TableHead className="w-16 font-racing text-primary">ID</TableHead>
+                  <TableHead className="font-racing text-primary">Pergunta</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {questions.map((q) => (
+                  <TableRow
+                    key={q.id}
+                    className="border-white/10 hover:bg-white/5 transition-colors"
+                  >
+                    <TableCell className="font-mono text-muted-foreground text-xs">
+                      {q.external_id}
+                    </TableCell>
+                    <TableCell className="max-w-[200px] truncate text-xs" title={q.statement}>
+                      {q.statement}
+                    </TableCell>
                   </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {questions.map((q) => (
-                    <TableRow
-                      key={q.id}
-                      className="border-white/10 hover:bg-white/5 transition-colors"
-                    >
-                      <TableCell className="font-mono text-muted-foreground text-xs">
-                        {q.external_id}
-                      </TableCell>
-                      <TableCell className="text-xs">{q.suggested_grade}</TableCell>
-                      <TableCell className="text-xs">{q.theme}</TableCell>
-                      <TableCell className="max-w-[200px] truncate text-xs" title={q.statement}>
-                        {q.statement}
-                      </TableCell>
-                      <TableCell>
-                        <span
-                          className={`px-2 py-1 rounded text-[10px] font-bold ${
-                            q.difficulty === 'Fácil'
-                              ? 'bg-green-500/20 text-green-400'
-                              : q.difficulty === 'Médio'
-                                ? 'bg-yellow-500/20 text-yellow-400'
-                                : 'bg-red-500/20 text-red-400'
-                          }`}
-                        >
-                          {q.difficulty}
-                        </span>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            )}
+                ))}
+              </TableBody>
+            </Table>
           </div>
         </DialogContent>
       </Dialog>
@@ -795,13 +989,13 @@ Regras:
                 onClick={generatePrompt}
                 className="text-xs font-sans font-bold"
               >
-                <Copy className="w-3 h-3 mr-2" /> Gerar Prompt p/ IA
+                <Copy className="w-3 h-3 mr-2" /> Prompt IA
               </Button>
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             <Textarea
-              placeholder='[{"id": 1, "tema": "Matemática", "pergunta": "...", "alternativas": ["1","2","3","4"], "resposta_correta": "2"}]'
+              placeholder='[{"id": 1, "tema": "Matemática", "pergunta": "..."}]'
               className="min-h-[300px] bg-black/50 border-white/20 font-mono text-xs text-white"
               value={importJson}
               onChange={(e) => setImportJson(e.target.value)}
@@ -816,48 +1010,6 @@ Regras:
           </div>
         </DialogContent>
       </Dialog>
-
-      {/* Remove Player from Session Dialog */}
-      <AlertDialog
-        open={!!playerToDelete}
-        onOpenChange={(open) => !open && setPlayerToDelete(null)}
-      >
-        <AlertDialogContent className="glass-panel border-white/10 text-white">
-          <AlertDialogHeader>
-            <AlertDialogTitle className="font-racing text-xl text-primary">
-              Remover Aluno da Corrida
-            </AlertDialogTitle>
-            <AlertDialogDescription className="text-muted-foreground">
-              Tem certeza que deseja remover <strong>{playerToDelete?.name}</strong> da corrida
-              atual?
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-
-          <div className="flex items-center space-x-2 py-4">
-            <Checkbox
-              id="delete-account"
-              checked={deleteAccountToo}
-              onCheckedChange={(c) => setDeleteAccountToo(!!c)}
-              className="border-white/50 data-[state=checked]:bg-destructive data-[state=checked]:border-destructive"
-            />
-            <Label htmlFor="delete-account" className="text-sm cursor-pointer">
-              Também excluir a conta deste aluno permanentemente
-            </Label>
-          </div>
-
-          <AlertDialogFooter>
-            <AlertDialogCancel className="bg-transparent border-white/20 hover:bg-white/10 text-white">
-              Cancelar
-            </AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleDeletePlayer}
-              className="bg-destructive hover:bg-destructive/80 text-white"
-            >
-              Remover
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </>
   )
 }

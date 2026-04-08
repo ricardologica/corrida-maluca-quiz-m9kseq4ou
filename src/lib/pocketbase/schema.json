@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-04-08T20:26:01.881Z",
+  "generatedAt": "2026-04-08T23:59:21.859Z",
   "collections": [
     {
       "name": "users",
@@ -303,6 +303,84 @@
         }
       ],
       "indexes": ["CREATE UNIQUE INDEX idx_user_session ON player_progress (user_id, session_id)"]
+    },
+    {
+      "name": "session_prizes",
+      "type": "base",
+      "apiRules": {
+        "list": "",
+        "view": "",
+        "create": "@request.auth.role = 'teacher'",
+        "update": "@request.auth.role = 'teacher' || (@request.auth.id != '' && claimed = false)",
+        "delete": "@request.auth.role = 'teacher'"
+      },
+      "fields": [
+        {
+          "name": "session_id",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "game_sessions"
+        },
+        {
+          "name": "name",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "image",
+          "type": "file",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "image_url",
+          "type": "url",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "global_threshold",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "min_correct",
+          "type": "number",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "winner_id",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "users"
+        },
+        {
+          "name": "claimed",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": []
     }
   ]
 }

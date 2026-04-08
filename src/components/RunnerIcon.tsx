@@ -68,7 +68,7 @@ export function RunnerIcon({
         .state-fast .part-leg-r, .state-fast .part-calf-r, .state-fast .part-leg-l, .state-fast .part-calf-l,
         .state-fast .part-arm-r, .state-fast .part-lower-arm-r, .state-fast .part-arm-l, .state-fast .part-lower-arm-l,
         .state-fast .part-torso {
-          animation-duration: 0.4s;
+          animation-duration: 0.15s;
         }
 
         .state-stumble .part-torso { animation: svg-stumble-torso 1.2s infinite ease-in-out; }

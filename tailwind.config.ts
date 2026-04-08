@@ -26,8 +26,8 @@ export default {
     },
     extend: {
       fontFamily: {
-        sans: ['Inter', 'system-ui', 'sans-serif'],
-        racing: ['Orbitron', 'sans-serif'],
+        sans: ['Nunito', 'system-ui', 'sans-serif'],
+        racing: ['Chewy', 'sans-serif'],
       },
       colors: {
         border: 'hsl(var(--border))',

@@ -94,14 +94,13 @@ export function RaceViewport({ sessionId, currentUserId }: RaceViewportProps) {
           }
         }
 
-        const name =
-          p.expand?.user_id?.nickname || p.expand?.user_id?.name?.split(' ')[0] || 'Piloto'
+        const name = p.expand?.user_id?.nickname || p.expand?.user_id?.name || 'Piloto'
 
         return (
           <div
             key={p.id}
-            className="absolute bottom-6 transition-all duration-1000 ease-in-out z-10 flex flex-col items-center"
-            style={{ left: `calc(${pct}% - 30px)`, zIndex: isMe ? 20 : 10 }}
+            className="absolute bottom-6 -translate-x-1/2 transition-all duration-1000 ease-in-out z-10 flex flex-col items-center"
+            style={{ left: `${pct}%`, zIndex: isMe ? 20 : 10 }}
           >
             {isMe && (
               <div className="text-[10px] md:text-xs font-racing text-primary mb-1 animate-pulse">

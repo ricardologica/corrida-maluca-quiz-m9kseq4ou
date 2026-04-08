@@ -1,36 +1,41 @@
-import { useSyncExternalStore } from 'react'
+import { useState, useEffect } from 'react'
 
-type GameState = {
-  currentSessionId: string | null
-  currentProgressId: string | null
-  raceCode: string | null
-}
-
-let state: GameState = {
-  currentSessionId: null,
-  currentProgressId: null,
-  raceCode: null,
-}
+let currentSessionId: string | null = localStorage.getItem('currentSessionId')
+let currentProgressId: string | null = localStorage.getItem('currentProgressId')
 
 const listeners = new Set<() => void>()
+
 const notify = () => listeners.forEach((l) => l())
 
-export const gameStore = {
-  subscribe: (listener: () => void) => {
+export const useGameStore = () => {
+  const [, setTick] = useState(0)
+
+  useEffect(() => {
+    const listener = () => setTick((t) => t + 1)
     listeners.add(listener)
-    return () => listeners.delete(listener)
-  },
-  getSnapshot: () => state,
-  setSession: (sessionId: string, code: string) => {
-    state = { ...state, currentSessionId: sessionId, raceCode: code }
-    notify()
-  },
-  setProgress: (progressId: string) => {
-    state = { ...state, currentProgressId: progressId }
-    notify()
-  },
+    return () => {
+      listeners.delete(listener)
+    }
+  }, [])
+
+  return {
+    currentSessionId,
+    currentProgressId,
+    setSession: (sessionId: string, progressId: string) => {
+      currentSessionId = sessionId
+      currentProgressId = progressId
+      localStorage.setItem('currentSessionId', sessionId)
+      localStorage.setItem('currentProgressId', progressId)
+      notify()
+    },
+    clearSession: () => {
+      currentSessionId = null
+      currentProgressId = null
+      localStorage.removeItem('currentSessionId')
+      localStorage.removeItem('currentProgressId')
+      notify()
+    },
+  }
 }
 
-export function useGameStore() {
-  return useSyncExternalStore(gameStore.subscribe, gameStore.getSnapshot)
-}
+export default useGameStore

@@ -50,8 +50,11 @@ const Dashboard = () => {
   const navigate = useNavigate()
 
   const { toast } = useToast()
-  const [session, setSession] = useState<RecordModel | null>(null)
+  const [activeTab, setActiveTab] = useState('6º Ano')
+  const [sessions, setSessions] = useState<RecordModel[]>([])
   const [players, setPlayers] = useState<RecordModel[]>([])
+
+  const currentSession = sessions.find((s) => s.grade === activeTab)
   const [loading, setLoading] = useState(true)
 
   const [importJson, setImportJson] = useState('')
@@ -77,9 +80,17 @@ const Dashboard = () => {
       navigate('/login')
       return
     }
-    loadSession()
+    loadSessions()
     loadQuestions()
   }, [user, navigate])
+
+  useEffect(() => {
+    if (currentSession) {
+      loadPlayers(currentSession.id)
+    } else {
+      setPlayers([])
+    }
+  }, [currentSession?.id])
 
   const loadQuestions = async () => {
     setLoadingQuestions(true)
@@ -95,16 +106,13 @@ const Dashboard = () => {
     }
   }
 
-  const loadSession = async () => {
+  const loadSessions = async () => {
     try {
-      const records = await pb.collection('game_sessions').getList(1, 1, {
+      const records = await pb.collection('game_sessions').getFullList({
         filter: `created_by="${user?.id}" && status!="finished"`,
         sort: '-created',
       })
-      if (records.items.length > 0) {
-        setSession(records.items[0])
-        loadPlayers(records.items[0].id)
-      }
+      setSessions(records)
     } catch (e) {
       console.error(e)
     } finally {
@@ -143,23 +151,27 @@ const Dashboard = () => {
   useRealtime(
     'player_progress',
     (e) => {
-      if (session && e.record.session_id === session.id) {
-        loadPlayers(session.id)
+      if (currentSession && e.record.session_id === currentSession.id) {
+        loadPlayers(currentSession.id)
       }
     },
-    !!session,
+    !!currentSession,
   )
 
   useRealtime(
     'game_sessions',
     (e) => {
       if (e.record.created_by === user?.id) {
-        if (e.record.status === 'finished') {
-          setSession(null)
-          setPlayers([])
-        } else {
-          setSession(e.record)
-        }
+        setSessions((prev) => {
+          if (e.action === 'delete' || e.record.status === 'finished') {
+            return prev.filter((s) => s.id !== e.record.id)
+          }
+          const exists = prev.find((s) => s.id === e.record.id)
+          if (exists) {
+            return prev.map((s) => (s.id === e.record.id ? e.record : s))
+          }
+          return [...prev, e.record]
+        })
       }
     },
     !!user,
@@ -303,31 +315,30 @@ Regras:
   const createSession = async () => {
     const code = Math.random().toString(36).substring(2, 8).toUpperCase()
     try {
-      const newSession = await pb.collection('game_sessions').create({
+      await pb.collection('game_sessions').create({
         code,
         status: 'lobby',
         created_by: user?.id,
+        grade: activeTab,
       })
-      setSession(newSession)
-      setPlayers([])
     } catch (e) {
       console.error(e)
     }
   }
 
   const updateSessionStatus = async (status: string) => {
-    if (!session) return
+    if (!currentSession) return
     try {
-      await pb.collection('game_sessions').update(session.id, { status })
+      await pb.collection('game_sessions').update(currentSession.id, { status })
     } catch (e) {
       console.error(e)
     }
   }
 
   const resetSession = async () => {
-    if (!session) return
+    if (!currentSession) return
     try {
-      await pb.collection('game_sessions').update(session.id, { status: 'lobby' })
+      await pb.collection('game_sessions').update(currentSession.id, { status: 'lobby' })
       const promises = players.map((p) =>
         pb.collection('player_progress').update(p.id, {
           position_x: 0,
@@ -382,18 +393,34 @@ Regras:
 
   return (
     <>
-      {!session ? (
+      <div className="w-full max-w-5xl mx-auto px-4 mt-4">
+        <div className="flex gap-2 p-1 bg-black/40 rounded-xl overflow-x-auto">
+          {['6º Ano', '7º Ano', '8º Ano', '9º Ano'].map((g) => (
+            <button
+              key={g}
+              onClick={() => setActiveTab(g)}
+              className={`flex-1 py-3 px-6 rounded-lg font-racing text-lg transition-all whitespace-nowrap ${
+                activeTab === g
+                  ? 'bg-primary text-black shadow-[0_0_15px_rgba(0,255,204,0.3)]'
+                  : 'text-muted-foreground hover:bg-white/5 hover:text-white'
+              }`}
+            >
+              {g}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {!currentSession ? (
         <div className="flex-1 flex flex-col items-center justify-center p-4 gap-4">
           <div className="glass-panel p-8 text-center space-y-6 rounded-2xl max-w-md w-full animate-fade-in-up">
-            <h2 className="font-racing text-3xl text-primary">Painel do Professor</h2>
-            <p className="text-muted-foreground">
-              Nenhuma corrida ativa no momento. Inicie uma nova para seus alunos entrarem.
-            </p>
+            <h2 className="font-racing text-3xl text-primary">Corrida: {activeTab}</h2>
+            <p className="text-muted-foreground">Nenhuma corrida ativa para o {activeTab}.</p>
             <Button
               onClick={createSession}
               className="w-full bg-primary text-black font-racing text-lg h-14 hover:bg-primary/80 transition-all"
             >
-              <Plus className="mr-2" /> Criar Nova Corrida
+              <Plus className="mr-2" /> Iniciar Corrida
             </Button>
           </div>
 
@@ -430,14 +457,14 @@ Regras:
             <div className="p-4 border-b border-white/10 flex justify-between items-center bg-black/40 flex-wrap gap-4">
               <h2 className="font-racing text-xl md:text-2xl flex items-center gap-2">
                 <span
-                  className={`animate-pulse ${session.status === 'active' ? 'text-green-500' : session.status === 'paused' ? 'text-yellow-500' : 'text-blue-500'}`}
+                  className={`animate-pulse ${currentSession.status === 'active' ? 'text-green-500' : currentSession.status === 'paused' ? 'text-yellow-500' : 'text-blue-500'}`}
                 >
                   ●
                 </span>
-                {session.status.toUpperCase()}
+                {currentSession.status.toUpperCase()}
               </h2>
               <div className="flex flex-wrap gap-2">
-                {session.status === 'lobby' || session.status === 'paused' ? (
+                {currentSession.status === 'lobby' || currentSession.status === 'paused' ? (
                   <Button
                     onClick={() => updateSessionStatus('active')}
                     variant="outline"
@@ -504,9 +531,9 @@ Regras:
                 </Button>
               </div>
               <div className="font-racing text-sm text-muted-foreground">
-                CÓDIGO:{' '}
+                CÓDIGO ({currentSession.grade}):{' '}
                 <span className="text-white text-2xl tracking-widest bg-black/50 px-3 py-1 rounded border border-white/20 ml-2">
-                  {session.code}
+                  {currentSession.code}
                 </span>
               </div>
             </div>
@@ -519,7 +546,7 @@ Regras:
                 <div className="h-full flex flex-col items-center justify-center text-muted-foreground font-racing p-4 text-center space-y-4">
                   <div className="text-5xl animate-bounce">🏎️</div>
                   <div className="text-xl">Peça aos alunos para entrarem com o código:</div>
-                  <div className="text-5xl text-primary tracking-widest">{session.code}</div>
+                  <div className="text-5xl text-primary tracking-widest">{currentSession.code}</div>
                 </div>
               )}
             </div>

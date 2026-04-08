@@ -30,14 +30,25 @@ const Quiz = () => {
 
     const loadGame = async () => {
       try {
-        const [qData, pData, sData] = await Promise.all([
-          pb.collection('questions').getFullList({ sort: '@random', requestKey: null }),
+        const sData = await pb.collection('game_sessions').getOne(currentSessionId)
+        const gradeFilter = sData.grade ? `suggested_grade="${sData.grade}"` : ''
+
+        const [qData, pData] = await Promise.all([
+          pb.collection('questions').getFullList({
+            filter: gradeFilter,
+            sort: '@random',
+            requestKey: null,
+          }),
           pb.collection('player_progress').getOne(currentProgressId),
-          pb.collection('game_sessions').getOne(currentSessionId),
         ])
 
         // Ensure exactly 30 questions
         let finalQs = qData
+        if (finalQs.length === 0) {
+          finalQs = await pb
+            .collection('questions')
+            .getFullList({ sort: '@random', requestKey: null })
+        }
         while (finalQs.length > 0 && finalQs.length < TOTAL_QUESTIONS) {
           finalQs = [...finalQs, ...qData]
         }

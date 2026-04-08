@@ -21,6 +21,11 @@ export const gameStore = {
     localStorage.setItem('currentProgressId', progressId)
     notify()
   },
+  setProgress: (progressId: string) => {
+    currentProgressId = progressId
+    localStorage.setItem('currentProgressId', progressId)
+    notify()
+  },
   clearSession: () => {
     currentSessionId = null
     currentProgressId = null
@@ -45,6 +50,7 @@ export const useGameStore = () => {
     currentSessionId,
     currentProgressId,
     setSession: gameStore.setSession,
+    setProgress: gameStore.setProgress,
     clearSession: gameStore.clearSession,
   }
 }

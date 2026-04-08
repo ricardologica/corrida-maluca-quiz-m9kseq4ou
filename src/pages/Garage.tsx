@@ -30,7 +30,7 @@ const Garage = () => {
   const navigate = useNavigate()
   const { toast } = useToast()
   const { currentSessionId } = useGameStore()
-  const { user, signOut } = useAuth()
+  const { user, signOut, loading: authLoading } = useAuth()
 
   // Profile Form States
   const [name, setName] = useState(user?.name || '')
@@ -193,7 +193,15 @@ const Garage = () => {
         })
       }
 
-      gameStore.setProgress(progress.id)
+      if (gameStore && 'setProgress' in gameStore && typeof gameStore.setProgress === 'function') {
+        gameStore.setProgress(progress.id)
+      } else if (
+        gameStore &&
+        'setSession' in gameStore &&
+        typeof gameStore.setSession === 'function'
+      ) {
+        gameStore.setSession(currentSessionId, progress.id)
+      }
       navigate('/quiz')
     } catch (err: any) {
       toast({
@@ -204,6 +212,16 @@ const Garage = () => {
     } finally {
       setLoading(false)
     }
+  }
+
+  if (authLoading) {
+    return (
+      <div className="flex-1 flex flex-col items-center justify-center p-4 h-full">
+        <div className="animate-pulse font-racing text-2xl text-primary flex items-center gap-3">
+          <span className="text-4xl animate-spin">⚙️</span> Ajustando Motores...
+        </div>
+      </div>
+    )
   }
 
   if (!user) {

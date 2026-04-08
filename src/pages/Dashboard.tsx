@@ -303,10 +303,17 @@ Regras:
   const handleDeleteStudent = async () => {
     if (!studentToDelete) return
     try {
+      const progresses = await pb.collection('player_progress').getFullList({
+        filter: `user_id="${studentToDelete.id}"`,
+      })
+      for (const p of progresses) {
+        await pb.collection('player_progress').delete(p.id)
+      }
+
       await pb.collection('users').delete(studentToDelete.id)
-      toast({ title: 'Sucesso', description: 'Aluno excluído permanentemente.' })
+      toast({ title: 'Student removed successfully' })
     } catch (e: any) {
-      toast({ title: 'Erro ao excluir aluno', description: e.message, variant: 'destructive' })
+      toast({ title: 'Failed to delete student. Please try again.', variant: 'destructive' })
     } finally {
       setStudentToDelete(null)
     }
@@ -674,8 +681,7 @@ Regras:
               Remover Aluno
             </AlertDialogTitle>
             <AlertDialogDescription className="text-muted-foreground">
-              Tem certeza que deseja excluir este jogador? Esta ação removerá permanentemente o
-              aluno e todo o seu histórico de progresso.
+              Are you sure you want to delete this student? This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

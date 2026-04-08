@@ -14,6 +14,7 @@ import pb from '@/lib/pocketbase/client'
 import { useToast } from '@/hooks/use-toast'
 import useGameStore from '@/stores/main'
 import { CameraCapture } from '@/components/CameraCapture'
+import { getErrorMessage } from '@/lib/pocketbase/errors'
 
 const Login = () => {
   const [userType, setUserType] = useState<'student' | 'teacher'>('student')
@@ -97,16 +98,22 @@ const Login = () => {
       }
 
       if (!currentUser || currentUser.role !== 'student') {
-        const guestUsername = `guest_${Math.random().toString(36).substring(2, 10)}`
+        const sanitizedName =
+          name
+            .trim()
+            .toLowerCase()
+            .replace(/[^a-z0-9]/g, '') || 'aluno'
+        const randomString = Math.random().toString(36).substring(2, 8)
+        const guestEmail = `${sanitizedName}_${sessionCode.toLowerCase()}_${randomString}@corrida.internal`
         const guestPassword = 'Skip@Pass123'
 
-        formData.append('username', guestUsername)
+        formData.append('email', guestEmail)
         formData.append('password', guestPassword)
         formData.append('passwordConfirm', guestPassword)
         formData.append('role', 'student')
 
         await pb.collection('users').create(formData)
-        const authData = await pb.collection('users').authWithPassword(guestUsername, guestPassword)
+        const authData = await pb.collection('users').authWithPassword(guestEmail, guestPassword)
         updatedUser = authData.record
       } else {
         updatedUser = await pb.collection('users').update(currentUser.id, formData)
@@ -153,7 +160,7 @@ const Login = () => {
     } catch (err: any) {
       toast({
         title: 'Erro ao entrar na corrida',
-        description: err.message || 'Verifique os dados informados.',
+        description: getErrorMessage(err) || 'Verifique os dados informados.',
         variant: 'destructive',
       })
     } finally {

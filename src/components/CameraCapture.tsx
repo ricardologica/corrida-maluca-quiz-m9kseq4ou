@@ -1,8 +1,10 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { Button } from '@/components/ui/button'
 import { Camera, RefreshCw } from 'lucide-react'
+import { useToast } from '@/hooks/use-toast'
 
 export function CameraCapture({ onCapture }: { onCapture: (file: File | null) => void }) {
+  const { toast } = useToast()
   const [stream, setStream] = useState<MediaStream | null>(null)
   const [preview, setPreview] = useState<string | null>(null)
   const videoRef = useRef<HTMLVideoElement>(null)
@@ -25,7 +27,11 @@ export function CameraCapture({ onCapture }: { onCapture: (file: File | null) =>
       }
     } catch (err) {
       console.error('Error accessing camera', err)
-      alert('Não foi possível acessar a câmera. Verifique as permissões.')
+      toast({
+        title: 'Câmera indisponível',
+        description: 'Não foi possível acessar a câmera. Verifique as permissões.',
+        variant: 'destructive',
+      })
     }
   }
 

@@ -278,7 +278,8 @@ const Dashboard = () => {
           explanation: item.explicacao || '',
           difficulty: item.nivel || 'Médio',
           suggested_grade: activeTab,
-        })        count++
+        })
+        count++
       }
       toast({ title: 'Sucesso!', description: `${count} questões importadas.` })
       setImportModalOpen(false)
@@ -487,10 +488,16 @@ Regras:
           <div className="glass-panel p-8 text-center space-y-6 rounded-2xl max-w-md w-full animate-fade-in-up">
             <h2 className="font-racing text-3xl text-primary">Corrida: {activeTab}</h2>
             <div className="bg-black/30 p-3 rounded-lg border border-white/5 inline-block mx-auto">
-              <span className="text-muted-foreground font-bold text-sm uppercase tracking-wider block mb-1">Questões Disponíveis</span>
-              <span className="text-3xl font-racing text-white">{questions.filter(q => q.suggested_grade === activeTab).length}</span>
+              <span className="text-muted-foreground font-bold text-sm uppercase tracking-wider block mb-1">
+                Questões Disponíveis
+              </span>
+              <span className="text-3xl font-racing text-white">
+                {questions.filter((q) => q.suggested_grade === activeTab).length}
+              </span>
             </div>
-            <p className="text-muted-foreground text-sm">Nenhuma corrida ativa para o {activeTab}.</p>
+            <p className="text-muted-foreground text-sm">
+              Nenhuma corrida ativa para o {activeTab}.
+            </p>
             <Button
               onClick={createSession}
               className="w-full bg-primary text-black font-racing text-lg h-14 hover:bg-primary/80 transition-all"
@@ -613,7 +620,11 @@ Regras:
                   </span>
                 </div>
                 <div className="text-xs text-muted-foreground font-bold">
-                  Banco de Questões: <span className="text-primary">{questions.filter(q => q.suggested_grade === currentSession.grade).length}</span> disponíveis
+                  Banco de Questões:{' '}
+                  <span className="text-primary">
+                    {questions.filter((q) => q.suggested_grade === currentSession.grade).length}
+                  </span>{' '}
+                  disponíveis
                 </div>
               </div>
             </div>
@@ -778,9 +789,15 @@ Regras:
                     <TableRow key={p.id} className="border-b border-white/10 hover:bg-white/5">
                       <TableCell className="font-bold flex items-center gap-2">
                         {p.image ? (
-                          <img src={pb.files.getURL(p, p.image)} className="w-8 h-8 rounded-md object-cover bg-black/50" />
+                          <img
+                            src={pb.files.getURL(p, p.image)}
+                            className="w-8 h-8 rounded-md object-cover bg-black/50"
+                          />
                         ) : p.image_url ? (
-                          <img src={p.image_url} className="w-8 h-8 rounded-md object-cover bg-black/50" />
+                          <img
+                            src={p.image_url}
+                            className="w-8 h-8 rounded-md object-cover bg-black/50"
+                          />
                         ) : (
                           <div className="w-8 h-8 rounded-md bg-white/10 flex items-center justify-center text-muted-foreground shrink-0">
                             <Gift className="w-4 h-4" />

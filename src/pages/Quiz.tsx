@@ -336,7 +336,10 @@ const Quiz = () => {
           <div className="text-5xl md:text-7xl font-racing text-primary mb-4 animate-bounce text-shadow-lg tracking-wider">
             🏆 VOCÊ GANHOU! 🏆
           </div>
-          <div className="text-2xl md:text-4xl text-white mb-8 font-racing bg-accent/30 px-8 py-3 rounded-2xl border-4 border-accent shadow-[0_0_30px_rgba(255,0,128,0.5)]">
+          <div className="text-2xl md:text-3xl text-white mb-2 font-bold">
+            Parabéns! Você ganhou
+          </div>
+          <div className="text-3xl md:text-5xl text-accent mb-8 font-racing bg-accent/20 px-8 py-3 rounded-3xl border-4 border-accent shadow-[0_0_30px_rgba(255,0,128,0.5)]">
             {wonPrize.name}
           </div>
           {wonPrize.image ? (

@@ -86,6 +86,7 @@ const Dashboard = () => {
     image_url: '',
     search: '',
   })
+  const [newPrizeFile, setNewPrizeFile] = useState<File | null>(null)
 
   useEffect(() => {
     if (!user || user.role !== 'teacher') {
@@ -423,20 +424,27 @@ Regras:
   const handleAddPrize = async () => {
     if (!newPrize.name || !newPrize.global_threshold || !currentSession) return
     try {
-      const img =
-        newPrize.image_url ||
-        (newPrize.search
-          ? `https://img.usecurling.com/p/200/200?q=${encodeURIComponent(newPrize.search)}&color=gradient`
-          : '')
-      await pb.collection('session_prizes').create({
-        session_id: currentSession.id,
-        name: newPrize.name,
-        global_threshold: newPrize.global_threshold,
-        min_correct: newPrize.min_correct,
-        image_url: img,
-        claimed: false,
-      })
+      const formData = new FormData()
+      formData.append('session_id', currentSession.id)
+      formData.append('name', newPrize.name)
+      formData.append('global_threshold', newPrize.global_threshold.toString())
+      formData.append('min_correct', newPrize.min_correct.toString())
+      formData.append('claimed', 'false')
+
+      if (newPrizeFile) {
+        formData.append('image', newPrizeFile)
+      } else {
+        const img =
+          newPrize.image_url ||
+          (newPrize.search
+            ? `https://img.usecurling.com/p/200/200?q=${encodeURIComponent(newPrize.search)}&color=gradient`
+            : '')
+        formData.append('image_url', img)
+      }
+
+      await pb.collection('session_prizes').create(formData)
       setNewPrize({ name: '', global_threshold: 0, min_correct: 0, image_url: '', search: '' })
+      setNewPrizeFile(null)
       toast({ title: 'Prêmio adicionado com sucesso!' })
     } catch (e: any) {
       toast({ title: 'Erro ao adicionar prêmio', description: e.message, variant: 'destructive' })
@@ -484,17 +492,9 @@ Regras:
       </div>
 
       {!currentSession ? (
-        <div className="flex-1 flex flex-col items-center justify-center p-4 gap-4">
+        <div className="flex-1 flex flex-col items-center justify-center p-4 gap-4 overflow-y-auto">
           <div className="glass-panel p-8 text-center space-y-6 rounded-2xl max-w-md w-full animate-fade-in-up">
             <h2 className="font-racing text-3xl text-primary">Corrida: {activeTab}</h2>
-            <div className="bg-black/30 p-3 rounded-lg border border-white/5 inline-block mx-auto">
-              <span className="text-muted-foreground font-bold text-sm uppercase tracking-wider block mb-1">
-                Questões Disponíveis
-              </span>
-              <span className="text-3xl font-racing text-white">
-                {questions.filter((q) => q.suggested_grade === activeTab).length}
-              </span>
-            </div>
             <p className="text-muted-foreground text-sm">
               Nenhuma corrida ativa para o {activeTab}.
             </p>
@@ -506,7 +506,28 @@ Regras:
             </Button>
           </div>
 
-          <div className="flex flex-wrap justify-center gap-3 animate-fade-in-up delay-100 mt-4 max-w-2xl w-full">
+          <div className="glass-panel p-6 rounded-2xl max-w-3xl w-full animate-fade-in-up delay-75 border border-white/10 bg-black/40">
+            <h3 className="font-racing text-xl text-primary mb-4 text-center">
+              Banco de Questões por Série
+            </h3>
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+              {['Primário', '6º Ano', '7º Ano', '8º Ano', '9º Ano'].map((g) => (
+                <div
+                  key={g}
+                  className={`bg-black/60 p-4 rounded-xl text-center border transition-all ${activeTab === g ? 'border-primary/50 shadow-[0_0_10px_rgba(255,215,0,0.2)]' : 'border-white/5'}`}
+                >
+                  <div className="text-xs text-muted-foreground font-bold mb-2 uppercase tracking-wider">
+                    {g}
+                  </div>
+                  <div className="text-3xl font-racing text-white">
+                    {questions.filter((q) => q.suggested_grade === g).length}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="flex flex-wrap justify-center gap-3 animate-fade-in-up delay-100 max-w-3xl w-full">
             <Button
               onClick={() => {
                 setStudentsModalOpen(true)
@@ -735,26 +756,45 @@ Regras:
                 />
               </div>
               <div className="md:col-span-2">
-                <Label>Imagem do Prêmio (Busca de Fotos)</Label>
-                <div className="flex gap-2">
+                <Label>Imagem do Prêmio (Busca de Fotos ou Upload Local)</Label>
+                <div className="flex flex-col gap-3 mt-2">
+                  <div className="flex gap-2">
+                    <Input
+                      className="bg-black/50 border-white/20"
+                      value={newPrize.search}
+                      onChange={(e) => setNewPrize({ ...newPrize, search: e.target.value })}
+                      placeholder="Ex: chocolate"
+                    />
+                    <Button
+                      variant="outline"
+                      className="text-black bg-white"
+                      onClick={() =>
+                        setNewPrize({
+                          ...newPrize,
+                          image_url: `https://img.usecurling.com/p/200/200?q=${encodeURIComponent(newPrize.search)}&color=gradient`,
+                        })
+                      }
+                    >
+                      Buscar
+                    </Button>
+                  </div>
+                  <div className="text-center text-xs text-muted-foreground uppercase font-bold">
+                    ou
+                  </div>
                   <Input
+                    type="file"
+                    accept="image/*"
                     className="bg-black/50 border-white/20"
-                    value={newPrize.search}
-                    onChange={(e) => setNewPrize({ ...newPrize, search: e.target.value })}
-                    placeholder="Ex: chocolate"
+                    onChange={(e) => {
+                      if (e.target.files && e.target.files[0]) {
+                        setNewPrizeFile(e.target.files[0])
+                        setNewPrize({
+                          ...newPrize,
+                          image_url: URL.createObjectURL(e.target.files[0]),
+                        })
+                      }
+                    }}
                   />
-                  <Button
-                    variant="outline"
-                    className="text-black bg-white"
-                    onClick={() =>
-                      setNewPrize({
-                        ...newPrize,
-                        image_url: `https://img.usecurling.com/p/200/200?q=${encodeURIComponent(newPrize.search)}&color=gradient`,
-                      })
-                    }
-                  >
-                    Buscar
-                  </Button>
                 </div>
               </div>
               {newPrize.image_url && (

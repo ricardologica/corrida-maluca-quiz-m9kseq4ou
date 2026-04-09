@@ -46,6 +46,16 @@ import {
 
 const TOTAL_QUESTIONS = 30
 
+const normalizeGrade = (grade: string) => {
+  const sg = (grade || '').toLowerCase().trim()
+  if (['6º ano', '6o ano', '6 ano', '6ºano', '6oano', '6ano'].includes(sg)) return '6º Ano'
+  if (['7º ano', '7o ano', '7 ano', '7ºano', '7oano', '7ano'].includes(sg)) return '7º Ano'
+  if (['primário', 'primario'].includes(sg)) return 'Primário'
+  if (['8º ano', '8o ano', '8 ano'].includes(sg)) return '8º Ano'
+  if (['9º ano', '9o ano', '9 ano'].includes(sg)) return '9º Ano'
+  return grade
+}
+
 const Dashboard = () => {
   const { user } = useAuth()
   const navigate = useNavigate()
@@ -520,7 +530,7 @@ Regras:
                     {g}
                   </div>
                   <div className="text-3xl font-racing text-white">
-                    {questions.filter((q) => q.suggested_grade === g).length}
+                    {questions.filter((q) => normalizeGrade(q.suggested_grade) === g).length}
                   </div>
                 </div>
               ))}
@@ -643,7 +653,11 @@ Regras:
                 <div className="text-xs text-muted-foreground font-bold">
                   Banco de Questões:{' '}
                   <span className="text-primary">
-                    {questions.filter((q) => q.suggested_grade === currentSession.grade).length}
+                    {
+                      questions.filter(
+                        (q) => normalizeGrade(q.suggested_grade) === currentSession.grade,
+                      ).length
+                    }
                   </span>{' '}
                   disponíveis
                 </div>

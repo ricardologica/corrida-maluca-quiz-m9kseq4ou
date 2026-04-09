@@ -339,12 +339,22 @@ const Quiz = () => {
           <div className="text-2xl md:text-4xl text-white mb-8 font-racing bg-accent/30 px-8 py-3 rounded-2xl border-4 border-accent shadow-[0_0_30px_rgba(255,0,128,0.5)]">
             {wonPrize.name}
           </div>
-          {(wonPrize.image_url || wonPrize.image) && (
+          {wonPrize.image ? (
             <img
-              src={wonPrize.image_url || pb.files.getURL(wonPrize, wonPrize.image)}
+              src={pb.files.getURL(wonPrize, wonPrize.image)}
               alt={wonPrize.name}
               className="w-48 h-48 md:w-64 md:h-64 object-contain drop-shadow-[0_0_30px_rgba(255,255,255,0.6)] mb-10 animate-pulse bg-white/5 rounded-3xl p-4"
             />
+          ) : wonPrize.image_url ? (
+            <img
+              src={wonPrize.image_url}
+              alt={wonPrize.name}
+              className="w-48 h-48 md:w-64 md:h-64 object-contain drop-shadow-[0_0_30px_rgba(255,255,255,0.6)] mb-10 animate-pulse bg-white/5 rounded-3xl p-4"
+            />
+          ) : (
+            <div className="w-48 h-48 md:w-64 md:h-64 flex items-center justify-center bg-white/10 rounded-3xl mb-10 border-4 border-white/20 shadow-[0_0_30px_rgba(255,255,255,0.2)]">
+              <span className="text-8xl">🎁</span>
+            </div>
           )}
           <Button
             onClick={() => setWonPrize(null)}

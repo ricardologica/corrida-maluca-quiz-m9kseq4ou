@@ -14,7 +14,7 @@ export function TrackLane({ player, totalQuestions }: TrackLaneProps) {
   const displayLabel = formattedGrade ? `${formattedName}_${formattedGrade}` : formattedName
 
   return (
-    <div className="relative w-full h-24 sm:h-32 border-b-2 border-dashed border-white/10 overflow-hidden flex items-end">
+    <div className="relative w-full h-24 sm:h-28 border-b-2 border-dashed border-white/10 overflow-hidden flex items-center">
       {/* Animated Track Background */}
       <div className="absolute inset-0 bg-[url('https://img.usecurling.com/p/200/200?q=asphalt&color=black')] opacity-20 animate-track" />
 
@@ -23,20 +23,20 @@ export function TrackLane({ player, totalQuestions }: TrackLaneProps) {
 
       {/* Moving Car Container */}
       <div
-        className="absolute bottom-1 sm:bottom-2 z-10 transition-all duration-1000 ease-in-out"
-        style={{ left: `calc(${percentage}% - ${percentage === 100 ? 100 : 50}px)` }}
+        className="absolute z-10 transition-all duration-1000 ease-in-out"
+        style={{ left: `calc(${percentage}% - ${percentage === 100 ? 60 : 30}px)` }}
       >
-        <div className="relative flex flex-col items-center">
+        <div className="relative flex flex-col items-center justify-center">
+          {/* Player Name Bubble */}
+          <div className="bg-black/80 px-2 py-0.5 mb-1 rounded text-[10px] sm:text-xs font-racing whitespace-nowrap border border-white/20 shadow-lg uppercase z-20">
+            {displayLabel}
+          </div>
           <RunnerIcon
             color={player.carColor}
             avatarUrl={player.avatarUrl}
             status={player.status}
-            className="w-12 h-16 sm:w-16 sm:h-20 mb-2"
+            className="w-10 h-10 sm:w-14 sm:h-14"
           />
-          {/* Player Name Bubble */}
-          <div className="bg-black/80 px-2 py-0.5 mt-1 rounded text-[10px] sm:text-xs font-racing whitespace-nowrap border border-white/20 shadow-lg uppercase z-20">
-            {displayLabel}
-          </div>
         </div>
       </div>
     </div>

@@ -51,7 +51,7 @@ const Dashboard = () => {
   const navigate = useNavigate()
 
   const { toast } = useToast()
-  const [activeTab, setActiveTab] = useState('6º Ano')
+  const [activeTab, setActiveTab] = useState('Primário')
   const [sessions, setSessions] = useState<RecordModel[]>([])
   const [players, setPlayers] = useState<RecordModel[]>([])
 
@@ -277,8 +277,8 @@ const Dashboard = () => {
           correct_option: correctLetter,
           explanation: item.explicacao || '',
           difficulty: item.nivel || 'Médio',
-        })
-        count++
+          suggested_grade: activeTab,
+        })        count++
       }
       toast({ title: 'Sucesso!', description: `${count} questões importadas.` })
       setImportModalOpen(false)
@@ -466,7 +466,7 @@ Regras:
     <>
       <div className="w-full max-w-5xl mx-auto px-4 mt-4">
         <div className="flex gap-2 p-1 bg-black/20 rounded-xl overflow-x-auto">
-          {['6º Ano', '7º Ano', '8º Ano', '9º Ano'].map((g) => (
+          {['Primário', '6º Ano', '7º Ano', '8º Ano', '9º Ano'].map((g) => (
             <button
               key={g}
               onClick={() => setActiveTab(g)}
@@ -486,7 +486,11 @@ Regras:
         <div className="flex-1 flex flex-col items-center justify-center p-4 gap-4">
           <div className="glass-panel p-8 text-center space-y-6 rounded-2xl max-w-md w-full animate-fade-in-up">
             <h2 className="font-racing text-3xl text-primary">Corrida: {activeTab}</h2>
-            <p className="text-muted-foreground">Nenhuma corrida ativa para o {activeTab}.</p>
+            <div className="bg-black/30 p-3 rounded-lg border border-white/5 inline-block mx-auto">
+              <span className="text-muted-foreground font-bold text-sm uppercase tracking-wider block mb-1">Questões Disponíveis</span>
+              <span className="text-3xl font-racing text-white">{questions.filter(q => q.suggested_grade === activeTab).length}</span>
+            </div>
+            <p className="text-muted-foreground text-sm">Nenhuma corrida ativa para o {activeTab}.</p>
             <Button
               onClick={createSession}
               className="w-full bg-primary text-black font-racing text-lg h-14 hover:bg-primary/80 transition-all"
@@ -601,11 +605,16 @@ Regras:
                   <FileEdit className="w-4 h-4 mr-2" /> Questões
                 </Button>
               </div>
-              <div className="font-racing text-sm text-muted-foreground">
-                CÓDIGO:{' '}
-                <span className="text-white text-2xl tracking-widest bg-black/40 px-3 py-1 rounded border border-white/20 ml-2">
-                  {currentSession.code}
-                </span>
+              <div className="flex flex-col items-end gap-1">
+                <div className="font-racing text-sm text-muted-foreground">
+                  CÓDIGO:{' '}
+                  <span className="text-white text-2xl tracking-widest bg-black/40 px-3 py-1 rounded border border-white/20 ml-2">
+                    {currentSession.code}
+                  </span>
+                </div>
+                <div className="text-xs text-muted-foreground font-bold">
+                  Banco de Questões: <span className="text-primary">{questions.filter(q => q.suggested_grade === currentSession.grade).length}</span> disponíveis
+                </div>
               </div>
             </div>
 
@@ -768,8 +777,16 @@ Regras:
                   {prizes.map((p) => (
                     <TableRow key={p.id} className="border-b border-white/10 hover:bg-white/5">
                       <TableCell className="font-bold flex items-center gap-2">
-                        {p.image_url && <img src={p.image_url} className="w-8 h-8 rounded-md" />}
-                        {p.name}
+                        {p.image ? (
+                          <img src={pb.files.getURL(p, p.image)} className="w-8 h-8 rounded-md object-cover bg-black/50" />
+                        ) : p.image_url ? (
+                          <img src={p.image_url} className="w-8 h-8 rounded-md object-cover bg-black/50" />
+                        ) : (
+                          <div className="w-8 h-8 rounded-md bg-white/10 flex items-center justify-center text-muted-foreground shrink-0">
+                            <Gift className="w-4 h-4" />
+                          </div>
+                        )}
+                        <span className="truncate">{p.name}</span>
                       </TableCell>
                       <TableCell className="text-xs">
                         Global: {p.global_threshold} | Ind: {p.min_correct}

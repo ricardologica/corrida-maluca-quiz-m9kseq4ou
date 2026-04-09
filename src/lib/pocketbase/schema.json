@@ -29,19 +29,14 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": [
-            "onCreate"
-          ]
+          "autodateTriggers": ["onCreate"]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": [
-            "onCreate",
-            "onUpdate"
-          ]
+          "autodateTriggers": ["onCreate", "onUpdate"]
         },
         {
           "name": "grade",
@@ -54,10 +49,7 @@
           "type": "select",
           "required": false,
           "system": false,
-          "selectValues": [
-            "teacher",
-            "student"
-          ]
+          "selectValues": ["teacher", "student"]
         },
         {
           "name": "nickname",
@@ -124,12 +116,7 @@
           "type": "select",
           "required": true,
           "system": false,
-          "selectValues": [
-            "A",
-            "B",
-            "C",
-            "D"
-          ]
+          "selectValues": ["A", "B", "C", "D"]
         },
         {
           "name": "explanation",
@@ -160,19 +147,14 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": [
-            "onCreate"
-          ]
+          "autodateTriggers": ["onCreate"]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": [
-            "onCreate",
-            "onUpdate"
-          ]
+          "autodateTriggers": ["onCreate", "onUpdate"]
         },
         {
           "name": "external_id",
@@ -205,12 +187,7 @@
           "type": "select",
           "required": true,
           "system": false,
-          "selectValues": [
-            "lobby",
-            "active",
-            "paused",
-            "finished"
-          ]
+          "selectValues": ["lobby", "active", "paused", "finished"]
         },
         {
           "name": "created_by",
@@ -224,19 +201,14 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": [
-            "onCreate"
-          ]
+          "autodateTriggers": ["onCreate"]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": [
-            "onCreate",
-            "onUpdate"
-          ]
+          "autodateTriggers": ["onCreate", "onUpdate"]
         },
         {
           "name": "grade",
@@ -313,35 +285,24 @@
           "type": "select",
           "required": false,
           "system": false,
-          "selectValues": [
-            "idle",
-            "boost",
-            "penalty"
-          ]
+          "selectValues": ["idle", "boost", "penalty"]
         },
         {
           "name": "created",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": [
-            "onCreate"
-          ]
+          "autodateTriggers": ["onCreate"]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": [
-            "onCreate",
-            "onUpdate"
-          ]
+          "autodateTriggers": ["onCreate", "onUpdate"]
         }
       ],
-      "indexes": [
-        "CREATE UNIQUE INDEX idx_user_session ON player_progress (user_id, session_id)"
-      ]
+      "indexes": ["CREATE UNIQUE INDEX idx_user_session ON player_progress (user_id, session_id)"]
     },
     {
       "name": "session_prizes",
@@ -409,19 +370,14 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": [
-            "onCreate"
-          ]
+          "autodateTriggers": ["onCreate"]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": [
-            "onCreate",
-            "onUpdate"
-          ]
+          "autodateTriggers": ["onCreate", "onUpdate"]
         }
       ],
       "indexes": []
